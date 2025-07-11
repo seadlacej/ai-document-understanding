@@ -1,0 +1,34 @@
+{
+  "mcpServers": {
+    "pdf-extraction": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@xraywu/pdf-extraction-mcp"],
+      "env": {}
+    },
+    "document-forge": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@cablate/doc-forge-mcp"],
+      "env": {}
+    },
+    "filesystem": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
+      "env": {}
+    },
+    "image-analysis": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@assistants/vision-mcp"],
+      "env": {}
+    },
+    "office-powerpoint": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@gongrzhe/office-powerpoint-mcp-server"],
+      "env": {}
+    }
+  }
+}

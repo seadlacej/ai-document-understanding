@@ -4,8 +4,17 @@ This file provides guidance to Claude Code for deep document analysis and unders
 
 ## Document Processing Workflow with Deep Analysis
 
+### CRITICAL REQUIREMENT: FULL CONTENT TRANSCRIPTION
+**ALWAYS extract and transcribe 100% of content from documents:**
+- **Text**: Every word, including hidden text, speaker notes, and shape text
+- **Images**: Complete OCR of text in images PLUS full visual description
+- **Videos**: Complete audio transcription PLUS visual scene analysis
+- **Audio**: Full transcription of all spoken words
+
+**NEVER provide summaries or descriptions instead of actual content. The user needs the COMPLETE transcribed text from ALL media.**
+
 ### 1. Initial Setup
-- Check for documents in the `uploads/` folder
+- Check for documents in the `uploads/` folder (Note: Only process files uploaded by the user - never add files to this directory)
 - Create timestamped log entry in `logs/` directory
 - Prepare analysis framework
 
@@ -226,10 +235,32 @@ This presentation masterfully combines:
 
 ## Implementation Philosophy
 
-1. **Beyond Extraction**: Don't just extract, understand and interpret
-2. **Emotional Intelligence**: Recognize and analyze emotional design
-3. **Strategic Thinking**: Understand why choices were made
-4. **Holistic View**: See how all elements work together
-5. **Actionable Insights**: Provide learnings that can be applied
+1. **Complete Extraction First**: Extract EVERY piece of content - text, audio, visual
+2. **Then Add Understanding**: After extraction, provide interpretation and analysis
+3. **No Placeholders**: Never use placeholders like "[VIDEO CONTENT]" - always transcribe
+4. **Full Transcription**: Every document analysis must include 100% of the content
+5. **Audio Transcription**: Uses custom STT endpoint - no OpenAI API key required
+6. **Respect User Directories**: Never add files to `uploads/` - it's exclusively for user uploads
 
-This approach transforms document processing from mechanical extraction to intelligent understanding, revealing not just what is said, but why it matters.
+### Required Tools for Full Extraction:
+- **Tesseract.js**: For OCR text extraction from images
+- **ffmpeg**: For video/audio processing
+- **AudioTranscriber**: For audio transcription using custom STT endpoint (https://demo.cbook.ai/stt)
+- **Vision API**: For enhanced image visual analysis (optional - when OpenAI API key available)
+
+### Audio Transcription Configuration:
+The system uses a custom STT (Speech-to-Text) endpoint for audio transcription:
+- **Endpoint**: https://demo.cbook.ai/stt
+- **Default Locale**: de (German)
+- **Format**: Audio files are automatically converted to base64
+- **No API Key Required**: Audio transcription is free using the custom endpoint
+
+### Output Requirements:
+Every analysis MUST include:
+1. All text content verbatim
+2. Complete OCR text from every image
+3. Full audio transcription from every video/audio file
+4. Detailed visual descriptions of images and video scenes
+5. Source attribution for each piece of content
+
+This approach ensures users receive COMPLETE content transcription, not summaries or descriptions.

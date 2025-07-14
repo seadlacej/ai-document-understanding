@@ -1,8 +1,21 @@
 {
   "permissions": {
     "allow": [
-      "Bash(cp:*)"
+      "Bash(cp:*)",
+      "Bash(ls:*)",
+      "Bash(unzip:*)",
+      "Bash(grep:*)",
+      "Bash(ffprobe:*)",
+      "Bash(ffmpeg:*)",
+      "Bash(npm run clean:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": []
-  }
+  },
+  "enabledMcpjsonServers": [
+    "pdf-extraction",
+    "document-forge",
+    "filesystem",
+    "office-powerpoint"
+  ]
 }

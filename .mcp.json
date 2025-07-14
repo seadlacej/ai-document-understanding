@@ -18,12 +18,6 @@
       "args": ["-y", "@modelcontextprotocol/server-filesystem", "./"],
       "env": {}
     },
-    "image-analysis": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@assistants/vision-mcp"],
-      "env": {}
-    },
     "office-powerpoint": {
       "type": "stdio",
       "command": "npx",

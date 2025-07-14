@@ -3,11 +3,11 @@ node_modules/
 .pnpm-debug.log
 
 # Temporary files
-temp/
-*.tmp
+#temp/
+#*.tmp
 
 # Logs
-logs/
+# logs/
 
 # Uploads
 uploads/

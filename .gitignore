@@ -32,3 +32,7 @@ Thumbs.db
 # Build files
 dist/
 build/
+
+# Tesseract OCR language data files
+*.traineddata
+eng.traineddata

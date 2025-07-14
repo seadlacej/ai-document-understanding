@@ -24,7 +24,13 @@ STT_LOCALE=de
 OPENAI_API_KEY=sk-your-actual-api-key-here
 ```
 
-### 3. Install ffmpeg (for video processing)
+### 3. Download Tesseract Language Data
+```bash
+# Download English language data for OCR
+./setup-tesseract.sh
+```
+
+### 4. Install ffmpeg (for video processing)
 ```bash
 # Run the setup script
 ./setup-ffmpeg.sh
@@ -34,7 +40,7 @@ OPENAI_API_KEY=sk-your-actual-api-key-here
 # Ubuntu: sudo apt install ffmpeg
 ```
 
-### 4. Test Your Setup
+### 5. Test Your Setup
 ```bash
 # Run the API integration test
 node test-api-integration.js

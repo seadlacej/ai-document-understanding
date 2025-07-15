@@ -7,6 +7,7 @@ This file provides guidance to Claude Code for PowerPoint document analysis usin
 ### 1. Initial Setup and Logging
 
 - Check for PPTX files in the `uploads/` folder (Note: Only process files uploaded by the user - never add files to this directory)
+- **IMPORTANT**: All temporary files created during analysis MUST be placed in the `/temp` directory, not in the root folder
 - Create individual log file for this analysis session:
   ```bash
   # Create timestamped log file
@@ -37,6 +38,7 @@ mkdir -p output/[YYYYMMDDHHMMSS_filename_with_underlines]/
 ##### B. Extract All Content
 
 **Phase 1: Slide Image Generation**
+
 - Check if LibreOffice is installed using `src/utils/libreoffice-converter.js`
 - If available:
   - Convert each slide to high-quality PNG image
@@ -47,6 +49,7 @@ mkdir -p output/[YYYYMMDDHHMMSS_filename_with_underlines]/
   - Note: This will miss visual relationships and complex layouts
 
 **Phase 2: Media Extraction**
+
 - Extract all embedded images and videos
 - Copy media files to output directory
 - Maintain slide-to-media relationships
@@ -56,11 +59,13 @@ mkdir -p output/[YYYYMMDDHHMMSS_filename_with_underlines]/
 ##### C. Analyze Slide Content with Gemini
 
 **If slide images were generated:**
+
 1. Send each slide image to Gemini for comprehensive visual analysis
 2. Gemini will extract ALL text and understand visual layout
 3. Get complete understanding of slide structure and relationships
 
 **If LibreOffice not available:**
+
 1. Basic text analysis only
 2. Limited understanding of visual relationships
 3. Recommend installing LibreOffice for better results
@@ -70,6 +75,7 @@ mkdir -p output/[YYYYMMDDHHMMSS_filename_with_underlines]/
 ##### D. Process Images (One at a Time)
 
 For each extracted image:
+
 1. Save image to output directory
 2. Analyze using `src/utils/gemini-image-analyzer.js`
 3. Record which slide and text block the image relates to
@@ -81,6 +87,7 @@ For each extracted image:
 ##### E. Process Videos (One at a Time)
 
 For each extracted video:
+
 1. Save video to output directory
 2. Analyze using `src/utils/gemini-video-analyzer.js`
 3. Record which slide and text block the video relates to
@@ -92,6 +99,7 @@ For each extracted video:
 ### 3. Media-Text Relationship Tracking
 
 For each media file, maintain clear relationships:
+
 - Source slide number
 - Related text block or content on the slide
 - Position/context within the slide
@@ -120,6 +128,7 @@ output/
 # Complete Analysis: [filename]
 
 ## Document Information
+
 - Filename: [filename]
 - Type: PPTX
 - Date Processed: [YYYY-MM-DD HH:MM:SS]
@@ -141,6 +150,7 @@ output/
 [Any comments on this slide]
 
 **Image 1** (image_001.png)
+
 - **Related to:** [Specify which text block or section this image relates to]
 - **Context:** [How this image relates to the slide content]
 - **Gemini Analysis:**
@@ -151,6 +161,7 @@ output/
   - Layout: [presentation/document/screenshot/photo/diagram]
 
 **Video 1** (video_001.mp4)
+
 - **Related to:** [Specify which text block or section this video relates to]
 - **Context:** [How this video relates to the slide content]
 - **Duration:** [duration]
@@ -161,6 +172,7 @@ output/
   - Language: [detected language]
 
 ### Slide 2: [Title if available]
+
 [Continue same format for all slides...]
 ```
 
@@ -196,12 +208,14 @@ Create detailed logs in `/logs/[YYYYMMDDHHMMSS].log`:
 ### 8. Gemini Analyzer Integration
 
 #### Image Analysis (`src/utils/gemini-image-analyzer.js`):
+
 - Provides complete text extraction from images
 - Returns detailed description of image content
 - Detects language and layout type
 - No additional OCR needed - Gemini handles all text extraction
 
 #### Video Analysis (`src/utils/gemini-video-analyzer.js`):
+
 - Provides complete audio transcription
 - Analyzes visual content scene by scene
 - Extracts any text visible in video frames
@@ -220,11 +234,12 @@ Create detailed logs in `/logs/[YYYYMMDDHHMMSS].log`:
 9. **Compile Results** → Create comprehensive `result.md` combining all analyses
 10. **Log Completion** → Record final statistics and duration
 
-**Note**: Temporary files in `/temp` directory should be cleaned manually when needed.
+**Note**: All temporary files created during analysis (scripts, intermediate files, etc.) MUST be placed in the `/temp` directory, never in the root folder. The `/temp` directory should be cleaned manually when needed.
 
 ## LibreOffice Installation
 
 ### For Local Development (macOS):
+
 ```bash
 # Install using Homebrew
 brew install libreoffice
@@ -234,6 +249,7 @@ npm run check:libreoffice
 ```
 
 ### For Docker/Coolify Deployment:
+
 LibreOffice is automatically included in the Dockerfile. No manual installation needed.
 
 ```bash
@@ -257,8 +273,9 @@ This approach provides the best understanding of presentation content:
 ## Important Notes
 
 - Never add files to `uploads/` - it's exclusively for user uploads
+- **All temporary analysis files MUST be created in `/temp` directory, not in the root folder**
 - Process media files sequentially to ensure accurate analysis
 - Maintain clear relationships between media and slide content
 - Log every step with timestamps for debugging
 - The Gemini analyzers handle all text extraction - no additional tools needed
-- The comprehensive extraction captures content that simple text extraction might miss
+- LibreOffice provides the best visual understanding of slide content

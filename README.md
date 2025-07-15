@@ -5,7 +5,7 @@ A comprehensive document processing system that extracts and deeply analyzes con
 ## Features
 
 - **Multi-format Support**: Process PDF, DOCX, and PPTX files
-- **Deep Image Analysis**: 
+- **Deep Image Analysis**:
   - Visual description and OCR text extraction
   - Emotional impact assessment
   - Thematic interpretation and symbolism
@@ -25,6 +25,7 @@ A comprehensive document processing system that extracts and deeply analyzes con
 ## Quick Start
 
 1. **Install dependencies**:
+
    ```bash
    pnpm install
    ```
@@ -33,14 +34,20 @@ A comprehensive document processing system that extracts and deeply analyzes con
 
 3. **Configure your AI tool** (Claude, VS Code, etc.) to use the `.mcp.json` file for enhanced processing capabilities
 
-4. **Process documents** by asking your AI assistant to analyze files in the uploads folder
+4. **Example prompt for PPTX analysis**:
+
+   ```
+   "Please analyze the PowerPoint file uploads/Feinkonzeptionsworkshop.pptx following the workflow in CLAUDE.md."
+   ```
+
+5. **Process documents** by asking your AI assistant to analyze files in the uploads folder
 
 ## Project Structure
 
 ```
 ai-document-understanding/
 ├── uploads/              # Place your documents here
-├── output/              
+├── output/
 │   ├── text/            # Extracted text content
 │   ├── images/          # Image analysis results
 │   ├── videos/          # Video analysis results
@@ -56,13 +63,15 @@ ai-document-understanding/
 ## How It Works
 
 ### 1. Document Upload
+
 Place your PDF, DOCX, or PPTX files in the `uploads/` folder.
 
 ### 2. AI Processing
+
 The system uses multiple approaches to understand your documents:
 
 - **Text Extraction**: Preserves structure and context
-- **Image Analysis**: 
+- **Image Analysis**:
   - Describes what's shown visually
   - Extracts text via OCR
   - Interprets emotional impact and deeper meaning
@@ -73,6 +82,7 @@ The system uses multiple approaches to understand your documents:
   - Creates unified understanding of audio-visual elements
 
 ### 3. Deep Understanding
+
 Beyond simple extraction, the system provides:
 
 - **Emotional Analysis**: What feelings do images/videos evoke?
@@ -81,7 +91,9 @@ Beyond simple extraction, the system provides:
 - **Learning Extraction**: What can we learn from the communication approach?
 
 ### 4. Output Generation
+
 Results are saved in structured formats with:
+
 - Source attribution (document, page, element)
 - Visual descriptions
 - Extracted text
@@ -93,6 +105,7 @@ Results are saved in structured formats with:
 ```markdown
 **[IMAGE ANALYSIS]**
 Visual: Modern office space with diverse team collaborating
+
 - **Emotional Impact**: Aspirational, inclusive, progressive
 - **Deeper Meaning**: Work is evolving beyond traditional boundaries
 - **Significance**: Sets tone of innovation and human-centered approach
@@ -100,6 +113,7 @@ Visual: Modern office space with diverse team collaborating
 
 **[VIDEO ANALYSIS]**
 Duration: 30 seconds
+
 - **Visual Journey**: Data visualization morphing from small to large scale
 - **Audio**: "In just 18 months, we've transformed how 10,000 companies work"
 - **Emotional Arc**: Surprise → Impressed → Confident
@@ -119,6 +133,7 @@ The project uses Model Context Protocol (MCP) servers for enhanced processing:
 ## Logging
 
 All operations are logged with timestamps in the `logs/` directory:
+
 - Filename format: `YYYYMMDDHHMMSS.md`
 - Tracks processing progress
 - Documents insights and findings
@@ -134,13 +149,14 @@ All operations are logged with timestamps in the `logs/` directory:
 
 ## Requirements
 
-- Node.js 18+ 
+- Node.js 18+
 - pnpm package manager
 - AI assistant with MCP support (Claude, VS Code Copilot, etc.)
 
 ## Contributing
 
 This project is designed to work with AI assistants. Contributions should focus on:
+
 - Improving analysis frameworks
 - Adding new document format support
 - Enhancing extraction capabilities

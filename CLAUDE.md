@@ -23,16 +23,10 @@ This file provides guidance to Claude Code for deep document analysis and unders
 - **CRITICAL**: Create individual log file for this analysis session:
   ```bash
   # Create timestamped log file
-  touch logs/[YYYYMMDDHHMMSS].md
+  touch logs/[YYYYMMDDHHMMSS].log
   ```
-- **CRITICAL**: Before analysis, extract ALL media files to temp directory:
-  ```bash
-  # Extract PPTX contents
-  unzip -o uploads/[filename].pptx -d temp/[filename]_extracted
-  # Copy all media files to temp root
-  cp temp/[filename]_extracted/ppt/media/* temp/
-  ```
-- Log all extraction steps and any errors encountered
+- The ComprehensiveAnalyzer will handle all file extraction automatically
+- Log all processing steps and any errors encountered
 - All console.log outputs must be written to the log file
 
 ### 2. Enhanced Content Extraction Process
@@ -56,7 +50,7 @@ Only use programmatic solutions when MCPs cannot handle the specific task.
 - Extract all text preserving structure and context
 - Identify key themes and messaging
 - Note emotional tone and persuasive elements
-- Save to `output/text/[filename]_text.txt`
+- Save all content to single markdown file: `output/final/[filename]_complete_transcription.md`
 - **LOG**: All extraction steps and results
 
 ##### B. Image Text Extraction (PRIMARY FOCUS)
@@ -80,7 +74,7 @@ Only use programmatic solutions when MCPs cannot handle the specific task.
       "coordinates": [x, y, width, height]
     },
     {
-      "text": "Second line of text found", 
+      "text": "Second line of text found",
       "confidence": 92,
       "coordinates": [x, y, width, height]
     }
@@ -104,13 +98,13 @@ Only use programmatic solutions when MCPs cannot handle the specific task.
 ```json
 {
   "video_id": "vid_001",
-  "source": "slide_8", 
+  "source": "slide_8",
   "duration": "45 seconds",
   "complete_audio_transcription": "COMPLETE WORD-FOR-WORD TRANSCRIPTION OF EVERY WORD SPOKEN IN THE VIDEO",
   "transcription_timestamps": [
     {
       "start_time": "00:00:05",
-      "end_time": "00:00:10", 
+      "end_time": "00:00:10",
       "text": "First segment of spoken words exactly as said"
     },
     {
@@ -125,7 +119,7 @@ Only use programmatic solutions when MCPs cannot handle the specific task.
       "text_found": "Any text visible in video frame at this timestamp"
     },
     {
-      "timestamp": "00:00:15", 
+      "timestamp": "00:00:15",
       "text_found": "More text visible in video frame at this timestamp"
     }
   ],
@@ -138,35 +132,20 @@ Only use programmatic solutions when MCPs cannot handle the specific task.
 
 **CRITICAL**: Scene descriptions are SECONDARY. The primary goal is extracting ALL spoken words and any text visible in video frames.
 
-### 3. Synthesis and Final Output
+### 3. Final Output
 
-Create comprehensive analysis including:
+Create single markdown file with ALL transcribed content:
 
-1. **Document Overview**
+1. **Complete Text Extraction**
 
-   - Core purpose and audience
-   - Overall emotional tone
-   - Key themes and messages
+   - All document text verbatim
+   - All OCR text from images
+   - All audio transcriptions from videos/audio
+   - All text visible in video frames
 
-2. **Content Analysis**
-
-   - All extracted text with context
-   - Image analyses with insights
-   - Video analyses with learnings
-
-3. **Thematic Synthesis**
-
-   - Recurring themes across media
-   - Emotional journey through document
-   - Strategic messaging analysis
-
-4. **Significance Summary**
-
-   - Why this document matters
-   - Key learnings and insights
-   - Implications for audience
-
-5. **LOG**: Final analysis completion and file locations
+2. **Output Location**
+   - Save to: `output/final/[filename]_complete_transcription.md`
+   - **LOG**: Final output completion and file location
 
 ### 4. Cleanup Process
 
@@ -189,63 +168,63 @@ rm -f temp/frames_*.png
 ### 5. Output Format Example
 
 ```markdown
-# Deep Analysis: [filename]
+# Complete Transcription: [filename]
 
-## Document Overview
+## Document Information
 
-**Purpose**: Investor pitch for Series B funding
-**Emotional Journey**: Curiosity → Understanding → Excitement → Confidence
-**Core Message**: Transform challenge into opportunity through innovation
+- Filename: [filename]
+- Type: [PPTX/DOCX/PDF]
+- Date Processed: [YYYY-MM-DD HH:MM:SS]
 
-## Content Analysis
+## Document Text
 
-### Slide 1: Opening
+### Slide 1
 
-**Text**: "Reimagining the Future of Work"
+Reimagining the Future of Work
 
-**[IMAGE ANALYSIS]**
-Visual: Modern office space with diverse team collaborating
+[All text content from slide 1]
 
-- **Emotional Impact**: Aspirational, inclusive, progressive
-- **Deeper Meaning**: Work is evolving beyond traditional boundaries
-- **Significance**: Sets tone of innovation and human-centered approach
-- **Key Learning**: Visual diversity signals modern values to investors
+### Slide 2
 
-### Slide 5: Growth Metrics
+[All text content from slide 2]
 
-**[VIDEO ANALYSIS]**
-Duration: 30 seconds
+## Images
 
-- **Visual Journey**: Data visualization morphing from small to large scale
-- **Audio**: "In just 18 months, we've transformed how 10,000 companies work"
-- **Emotional Arc**: Surprise → Impressed → Confident
-- **Hidden Message**: We're not just growing, we're transforming an industry
-- **Significance**: Proof of concept at scale builds investor confidence
-- **Key Insight**: Dynamic visualization makes data emotionally compelling
+### Image 1 (Slide 1)
 
-## Thematic Synthesis
+**Extracted Text (OCR)**:
+Welcome to the future of work. Innovation starts here. Join us on this journey.
 
-### Recurring Themes:
+### Image 2 (Slide 5)
 
-1. **Transformation**: Every element reinforces change narrative
-2. **Human-Centered**: Technology serves people, not vice versa
-3. **Momentum**: Consistent use of upward/forward motion
+**Extracted Text (OCR)**:
+Revenue Growth 2022-2024
+Q1: $1.2M | Q2: $2.5M | Q3: $4.8M | Q4: $8.9M
 
-### Emotional Strategy:
+## Videos
 
-- Opens with aspiration (what's possible)
-- Builds with evidence (proof points)
-- Closes with invitation (join our journey)
+### Video 1 (Slide 8)
 
-## Document Significance
+**Duration**: 30 seconds
+**Audio Transcription**:
+"In just 18 months, we've transformed how 10,000 companies work. Our platform enables seamless collaboration across teams, time zones, and technologies."
 
-This presentation masterfully combines:
+**Text in Video Frames**:
 
-- Rational arguments (data, metrics)
-- Emotional engagement (stories, visuals)
-- Strategic messaging (problem-solution-impact)
+- 00:00:03 - "10,000+ Companies"
+- 00:00:15 - "50+ Countries"
+- 00:00:25 - "Transform Your Workplace"
 
-**Key Learning**: Successful communication requires both logical and emotional persuasion, with visuals carrying the emotional weight while text provides rational support.
+## Audio Files
+
+### Audio 1
+
+**Transcription**:
+"Welcome to our presentation. Today we'll explore how technology is reshaping the modern workplace..."
+
+---
+
+End of transcription
 ```
 
 ### 6. Important Analysis Guidelines
@@ -281,68 +260,33 @@ This presentation masterfully combines:
 
 Create individual log file in `/logs` directory for each analysis session:
 
-```markdown
-# Analysis Log: [filename]\_[YYYYMMDDHHMMSS]
-
-## Processing Started
-
-- Document: [filename]
-- Type: [PDF/DOCX/PPTX]
-- Total Pages/Slides: [number]
-- Images Found: [number]
-- Videos Found: [number]
-
-## Console Output Log
-
-[All console.log outputs from the analysis process]
-
-## Analysis Progress
-
-- HH:MM:SS - [Action taken]
-- HH:MM:SS - [Finding or insight]
-- HH:MM:SS - [MCP calls made]
-- HH:MM:SS - [Fallback methods used]
-
-## Error Log
-
-[Complete error messages with stack traces]
-
-## STT Endpoint Results
-
-- Endpoint: https://demo.cbook.ai/stt
-- Transcription attempts: [number]
-- Successful transcriptions: [number]
-- Failed transcriptions: [number]
-- Error details: [full error messages]
-
-## Deep Insights Captured
-
-- [Key thematic discoveries]
-- [Emotional design patterns]
-- [Strategic messaging observations]
-
-## Cleanup Operations
-
-- Temp directory cleaned: [timestamp]
-- Generated files removed: [list]
-
-## Processing Completed
-
-- Duration: [time]
-- Output saved to: [location]
-- Log file: logs/analysis*[filename]*[timestamp].md
+```
+[YYYY-MM-DD HH:MM:SS] Processing started for: [filename]
+[YYYY-MM-DD HH:MM:SS] Document type: [PDF/DOCX/PPTX]
+[YYYY-MM-DD HH:MM:SS] Extracting document contents to temp directory...
+[YYYY-MM-DD HH:MM:SS] Found [X] images, [Y] videos, [Z] audio files
+[YYYY-MM-DD HH:MM:SS] Starting text extraction...
+[YYYY-MM-DD HH:MM:SS] Extracted [N] words from document text
+[YYYY-MM-DD HH:MM:SS] Processing image 1 with OCR...
+[YYYY-MM-DD HH:MM:SS] OCR extracted [N] words from image 1
+[YYYY-MM-DD HH:MM:SS] Processing video 1 audio transcription...
+[YYYY-MM-DD HH:MM:SS] Transcribed [N] words from video 1
+[YYYY-MM-DD HH:MM:SS] ERROR: [Any error messages with details]
+[YYYY-MM-DD HH:MM:SS] Writing final output to: output/final/[filename]_complete_transcription.md
+[YYYY-MM-DD HH:MM:SS] Processing completed. Total duration: [X] seconds
+[YYYY-MM-DD HH:MM:SS] Log saved to: logs/[YYYYMMDDHHMMSS].log
 ```
 
 ## Implementation Philosophy
 
 1. **Complete Extraction First**: Extract EVERY piece of content - text, audio, visual
 2. **MCP-First Approach**: Prioritize MCP servers, fall back to programmatic solutions
-3. **Comprehensive Logging**: Log every step, console output, and error to individual files
-4. **Then Add Understanding**: After extraction, provide interpretation and analysis
+3. **Comprehensive Logging**: Log every step with timestamps to individual .log files
+4. **Pure Transcription**: Focus only on text extraction, no analysis or interpretation
 5. **No Placeholders**: Never use placeholders like "[VIDEO CONTENT]" - always transcribe
 6. **Full Transcription**: Every document analysis must include 100% of the content
-7. **Audio Transcription**: Uses custom STT endpoint - no OpenAI API key required
-8. **Self-Cleaning**: Always clean up temporary files after analysis
+7. **Audio Transcription**: Uses Azure OpenAI or custom STT endpoint
+8. **Manual Cleanup**: Prompt user to run `npm run clear` after completion
 9. **Respect User Directories**: Never add files to `uploads/` - it's exclusively for user uploads
 
 ### Required Tools for Full Extraction:
@@ -357,6 +301,7 @@ Create individual log file in `/logs` directory for each analysis session:
 The system supports two audio transcription methods:
 
 #### 1. Azure OpenAI Whisper (Recommended)
+
 - **Service**: Azure OpenAI Whisper API
 - **Max File Size**: 25MB per file
 - **Supported Formats**: mp3, mp4, mpeg, mpga, m4a, wav, webm
@@ -374,6 +319,7 @@ The system supports two audio transcription methods:
   - Timestamp support
 
 #### 2. Custom STT Endpoint (Fallback)
+
 - **Service**: Custom Speech-to-Text endpoint
 - **Endpoint**: https://demo.cbook.ai/stt
 - **Default Locale**: de (German)
@@ -401,12 +347,20 @@ Every analysis MUST include:
 
 ### Complete Analysis Flow:
 
-1. **Extract** → Extract all text and media files to temp directory
-2. **Transcribe Text** → Extract every word from images using OCR + Vision API
-3. **Transcribe Audio** → Extract every word from videos using STT endpoint
-4. **Transcribe Video Text** → Extract every word visible in video frames
-5. **Compile Results** → Combine all transcribed text into complete document
-6. **Log** → Record all steps, outputs, and errors in individual log file
-7. **Clean** → Remove all temporary files and generated content
+1. **Initialize** → Create timestamped log file in /logs/[YYYYMMDDHHMMSS].log
+2. **Run ComprehensiveAnalyzer** → Automatically extracts and processes all content
+3. **Extract Text** → Extract every word from document structure
+4. **Process Images** → Extract all text using OCR (Tesseract.js)
+5. **Process Audio/Video** → Extract all spoken words using Azure OpenAI or custom STT
+6. **Compile Results** → Save complete transcription to `/output/final/[filename]_complete_transcription.md`
+7. **Log Everything** → Record all steps, outputs, and errors with timestamps
+8. **Prompt Cleanup** → Ask user to run `npm run clean` to clean temp files
 
-**FINAL RESULT**: Complete word-for-word transcription of ALL text content found in the document, with no summaries or descriptions substituted for actual content.
+**FINAL RESULT**: Single markdown file in `/output/final/[filename]_complete_transcription.md` containing complete word-for-word transcription of ALL text content found in the document.
+
+### Testing API Connections:
+
+- **Test Vision API**: Run `node test-vision-api.js`
+- **Test Audio Transcription**: Run `node test-audio-transcription.js`
+
+These test scripts will verify your API configurations and show sample results.

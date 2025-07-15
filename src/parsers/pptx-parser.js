@@ -69,8 +69,11 @@ export class PPTXParser {
       // Extract notes
       result.notes = await this.extractNotes(tempExtractPath);
 
-      // Clean up temp directory
-      await fs.rm(tempExtractPath, { recursive: true, force: true });
+      // Store the extraction path for later use
+      result.extractionPath = tempExtractPath;
+      
+      // Don't clean up here - let the caller handle cleanup
+      // await fs.rm(tempExtractPath, { recursive: true, force: true });
 
       result.processingTime = Date.now() - startTime;
       return result;

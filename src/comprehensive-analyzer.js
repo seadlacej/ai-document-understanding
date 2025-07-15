@@ -105,9 +105,28 @@ export class ComprehensiveAnalyzer {
 
       console.log('\n✅ Analysis complete!');
       
+      // Clean up extraction directory if it exists
+      if (parsed.extractionPath) {
+        try {
+          await fs.rm(parsed.extractionPath, { recursive: true, force: true });
+          console.log('🧹 Cleaned up temporary extraction files');
+        } catch (cleanupError) {
+          console.error('Warning: Could not clean up temp files:', cleanupError.message);
+        }
+      }
+      
     } catch (error) {
       console.error('❌ Error during analysis:', error);
       result.error = error.message;
+      
+      // Try to clean up on error too
+      if (parsed && parsed.extractionPath) {
+        try {
+          await fs.rm(parsed.extractionPath, { recursive: true, force: true });
+        } catch (cleanupError) {
+          // Ignore cleanup errors in error handler
+        }
+      }
     }
 
     return result;

@@ -1,8 +1,8 @@
-import Tesseract from 'tesseract.js';
-import fs from 'fs/promises';
-import path from 'path';
-import { VisionAnalyzer } from './vision-analyzer.js';
-import dotenv from 'dotenv';
+import Tesseract from "tesseract.js";
+import fs from "fs/promises";
+import path from "path";
+import { VisionAnalyzer } from "./vision-analyzer.js";
+import dotenv from "dotenv";
 
 // Load environment variables
 dotenv.config();
@@ -16,12 +16,12 @@ dotenv.config();
 export class ImageAnalyzer {
   constructor(options = {}) {
     this.options = {
-      ocrLanguages: options.ocrLanguages || ['eng', 'deu'], // English and German
-      visionApiKey: options.visionApiKey || process.env.OPENAI_API_KEY,
+      ocrLanguages: options.ocrLanguages || ["eng", "deu"], // English and German
+      visionApiKey: process.env.OPENAI_API_KEY,
       enableOCR: options.enableOCR !== false,
       enableVisualAnalysis: options.enableVisualAnalysis !== false,
       confidenceThreshold: options.confidenceThreshold || 60,
-      ...options
+      ...options,
     };
   }
 
@@ -34,26 +34,26 @@ export class ImageAnalyzer {
   async analyzeImage(imagePath, context = {}) {
     const result = {
       filename: path.basename(imagePath),
-      source: context.source || 'unknown',
+      source: context.source || "unknown",
       analysis: {
         ocr: {
-          text: '',
+          text: "",
           confidence: 0,
-          words: []
+          words: [],
         },
         visual: {
-          description: '',
+          description: "",
           objects: [],
           colors: [],
           emotions: [],
-          themes: []
+          themes: [],
         },
         combined: {
-          fullDescription: '',
-          significance: '',
-          keyInsights: []
-        }
-      }
+          fullDescription: "",
+          significance: "",
+          keyInsights: [],
+        },
+      },
     };
 
     try {
@@ -69,11 +69,10 @@ export class ImageAnalyzer {
 
       // Combine OCR and visual analysis
       result.analysis.combined = this.combineAnalyses(
-        result.analysis.ocr, 
+        result.analysis.ocr,
         result.analysis.visual,
         context
       );
-
     } catch (error) {
       console.error(`Error analyzing image ${imagePath}:`, error);
       result.error = error.message;
@@ -89,39 +88,71 @@ export class ImageAnalyzer {
    */
   async performOCR(imagePath) {
     try {
+      // Create worker without logger to avoid serialization issues
       const worker = await Tesseract.createWorker();
-      
-      // Initialize worker with languages
-      await worker.loadLanguage(this.options.ocrLanguages.join('+'));
-      await worker.initialize(this.options.ocrLanguages.join('+'));
-      
-      // Perform OCR
+
+      // Initialize worker with languages - ensure German is prioritized
+      const languages = this.options.ocrLanguages.join("+");
+      await worker.loadLanguage(languages);
+      await worker.initialize(languages);
+
+      // Set parameters for better accuracy with German text and overlays
+      await worker.setParameters({
+        tessedit_pageseg_mode: Tesseract.PSM.AUTO_OSD, // Automatic with orientation detection
+        preserve_interword_spaces: '1',
+        tessedit_char_whitelist: 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyzÄÖÜäöüß0123456789 .,:;?!-"\'',
+      });
+
+      // Perform OCR with multiple attempts for better results
       const { data } = await worker.recognize(imagePath);
-      
+
+      // If confidence is low, try with different page segmentation mode
+      if (data.confidence < 60) {
+        console.log('\n🔄 Low confidence, trying with single column mode...');
+        await worker.setParameters({
+          tessedit_pageseg_mode: Tesseract.PSM.SINGLE_COLUMN,
+        });
+        const retry = await worker.recognize(imagePath);
+        if (retry.data.confidence > data.confidence) {
+          data.text = retry.data.text;
+          data.confidence = retry.data.confidence;
+          data.words = retry.data.words;
+        }
+      }
+
       // Terminate worker
       await worker.terminate();
 
+      // Clean up the text - remove excessive line breaks and normalize spaces
+      const cleanedText = data.text
+        .replace(/\n{3,}/g, '\n\n') // Replace multiple newlines with double
+        .replace(/[ \t]+/g, ' ') // Replace multiple spaces/tabs with single space
+        .trim();
+
       // Filter words by confidence
       const confidentWords = data.words.filter(
-        word => word.confidence > this.options.confidenceThreshold
+        (word) => word.confidence > this.options.confidenceThreshold
       );
 
+      // Log completion without newline prefix to avoid formatting issues
+
       return {
-        text: data.text.trim(),
+        text: cleanedText,
         confidence: data.confidence,
-        words: confidentWords.map(word => ({
+        words: confidentWords.map((word) => ({
           text: word.text,
           confidence: word.confidence,
-          bbox: word.bbox
-        }))
+          bbox: word.bbox,
+        })),
+        language: data.language || 'unknown'
       };
     } catch (error) {
-      console.error('OCR error:', error);
+      console.error("\n❌ OCR error:", error.message);
       return {
-        text: '[OCR FAILED]',
+        text: "[OCR FAILED]",
         confidence: 0,
         words: [],
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -141,7 +172,7 @@ export class ImageAnalyzer {
         colors: [],
         emotions: [],
         themes: [],
-        placeholder: true
+        placeholder: true,
       };
     }
 
@@ -149,9 +180,9 @@ export class ImageAnalyzer {
       // Use Vision API for analysis
       const vision = new VisionAnalyzer(this.options.visionApiKey);
       const result = await vision.analyzeForDocument(imagePath, {
-        topic: 'document presentation'
+        topic: "document presentation",
       });
-      
+
       if (result.success) {
         // Extract structured data from the analysis
         return {
@@ -160,8 +191,8 @@ export class ImageAnalyzer {
           colors: this.extractColors(result.fullAnalysis),
           emotions: this.extractEmotions(result.fullAnalysis),
           themes: this.extractThemes(result.fullAnalysis),
-          extractedText: result.extractedText || '',
-          placeholder: false
+          extractedText: result.extractedText || "",
+          placeholder: false,
         };
       } else {
         return {
@@ -170,7 +201,7 @@ export class ImageAnalyzer {
           colors: [],
           emotions: [],
           themes: [],
-          error: result.error
+          error: result.error,
         };
       }
     } catch (error) {
@@ -180,7 +211,7 @@ export class ImageAnalyzer {
         colors: [],
         emotions: [],
         themes: [],
-        error: error.message
+        error: error.message,
       };
     }
   }
@@ -194,16 +225,16 @@ export class ImageAnalyzer {
       /shows?\s+(\w+\s+\w+)/gi,
       /contains?\s+(\w+\s+\w+)/gi,
       /features?\s+(\w+\s+\w+)/gi,
-      /displays?\s+(\w+\s+\w+)/gi
+      /displays?\s+(\w+\s+\w+)/gi,
     ];
-    
-    patterns.forEach(pattern => {
+
+    patterns.forEach((pattern) => {
       const matches = text.matchAll(pattern);
       for (const match of matches) {
         if (match[1]) objects.push(match[1]);
       }
     });
-    
+
     return [...new Set(objects)].slice(0, 5);
   }
 
@@ -211,9 +242,10 @@ export class ImageAnalyzer {
    * Extract colors mentioned in analysis
    */
   extractColors(text) {
-    const colorPattern = /\b(red|blue|green|yellow|orange|purple|black|white|gray|grey|brown|pink)\b/gi;
+    const colorPattern =
+      /\b(red|blue|green|yellow|orange|purple|black|white|gray|grey|brown|pink)\b/gi;
     const matches = text.match(colorPattern) || [];
-    return [...new Set(matches.map(c => c.toLowerCase()))];
+    return [...new Set(matches.map((c) => c.toLowerCase()))];
   }
 
   /**
@@ -221,15 +253,27 @@ export class ImageAnalyzer {
    */
   extractEmotions(text) {
     const emotionWords = [
-      'professional', 'modern', 'clean', 'friendly', 'serious',
-      'innovative', 'traditional', 'dynamic', 'calm', 'energetic',
-      'trustworthy', 'approachable', 'corporate', 'casual', 'formal'
+      "professional",
+      "modern",
+      "clean",
+      "friendly",
+      "serious",
+      "innovative",
+      "traditional",
+      "dynamic",
+      "calm",
+      "energetic",
+      "trustworthy",
+      "approachable",
+      "corporate",
+      "casual",
+      "formal",
     ];
-    
-    const found = emotionWords.filter(emotion => 
+
+    const found = emotionWords.filter((emotion) =>
       text.toLowerCase().includes(emotion)
     );
-    
+
     return found.slice(0, 3);
   }
 
@@ -238,15 +282,27 @@ export class ImageAnalyzer {
    */
   extractThemes(text) {
     const themeWords = [
-      'technology', 'education', 'business', 'environment', 'sustainability',
-      'innovation', 'communication', 'learning', 'growth', 'development',
-      'collaboration', 'digital', 'transformation', 'solution', 'platform'
+      "technology",
+      "education",
+      "business",
+      "environment",
+      "sustainability",
+      "innovation",
+      "communication",
+      "learning",
+      "growth",
+      "development",
+      "collaboration",
+      "digital",
+      "transformation",
+      "solution",
+      "platform",
     ];
-    
-    const found = themeWords.filter(theme => 
+
+    const found = themeWords.filter((theme) =>
       text.toLowerCase().includes(theme)
     );
-    
+
     return found.slice(0, 3);
   }
 
@@ -259,39 +315,42 @@ export class ImageAnalyzer {
    */
   combineAnalyses(ocr, visual, context) {
     const combined = {
-      fullDescription: '',
-      significance: '',
-      keyInsights: []
+      fullDescription: "",
+      significance: "",
+      keyInsights: [],
     };
 
     // Build full description
     const parts = [];
-    
+
     if (visual.description && !visual.placeholder) {
       parts.push(`Visual: ${visual.description}`);
     }
-    
+
     if (ocr.text) {
       parts.push(`Text found: "${ocr.text}"`);
     }
-    
+
     if (visual.objects && visual.objects.length > 0 && !visual.placeholder) {
-      parts.push(`Objects: ${visual.objects.join(', ')}`);
+      parts.push(`Objects: ${visual.objects.join(", ")}`);
     }
 
-    combined.fullDescription = parts.join(' | ') || '[Requires API keys for complete analysis]';
+    combined.fullDescription =
+      parts.join(" | ") || "[Requires API keys for complete analysis]";
 
     // Determine significance based on context
     if (context.slideNumber) {
       combined.significance = `Image on slide ${context.slideNumber}`;
     }
-    
+
     if (ocr.text && ocr.confidence > 80) {
-      combined.keyInsights.push('High-confidence text extraction');
+      combined.keyInsights.push("High-confidence text extraction");
     }
-    
+
     if (visual.emotions && visual.emotions.length > 0 && !visual.placeholder) {
-      combined.keyInsights.push(`Emotional tone: ${visual.emotions.join(', ')}`);
+      combined.keyInsights.push(
+        `Emotional tone: ${visual.emotions.join(", ")}`
+      );
     }
 
     return combined;
@@ -305,21 +364,21 @@ export class ImageAnalyzer {
    */
   async analyzeImages(imagePaths, onProgress) {
     const results = [];
-    
+
     for (let i = 0; i < imagePaths.length; i++) {
       const imagePath = imagePaths[i];
       const result = await this.analyzeImage(imagePath, {
         index: i,
-        total: imagePaths.length
+        total: imagePaths.length,
       });
-      
+
       results.push(result);
-      
+
       if (onProgress) {
         onProgress(i + 1, imagePaths.length, result);
       }
     }
-    
+
     return results;
   }
 
@@ -341,39 +400,39 @@ export class ImageAnalyzer {
    */
   async getMarkdownAnalysis(imagePath, context = {}) {
     const analysis = await this.analyzeImage(imagePath, context);
-    
+
     let markdown = `## Image Analysis: ${analysis.filename}\n\n`;
-    
+
     if (analysis.error) {
       markdown += `**Error**: ${analysis.error}\n\n`;
       return markdown;
     }
-    
+
     // Add visual description
     markdown += `### Visual Description\n${analysis.analysis.visual.description}\n\n`;
-    
+
     // Add OCR results
     if (analysis.analysis.ocr.text) {
       markdown += `### Text Content (OCR)\n`;
       markdown += `**Extracted Text**: "${analysis.analysis.ocr.text}"\n`;
       markdown += `**Confidence**: ${analysis.analysis.ocr.confidence}%\n\n`;
     }
-    
+
     // Add combined analysis
     markdown += `### Combined Analysis\n`;
     markdown += `**Full Description**: ${analysis.analysis.combined.fullDescription}\n`;
-    
+
     if (analysis.analysis.combined.significance) {
       markdown += `**Significance**: ${analysis.analysis.combined.significance}\n`;
     }
-    
+
     if (analysis.analysis.combined.keyInsights.length > 0) {
       markdown += `**Key Insights**:\n`;
-      analysis.analysis.combined.keyInsights.forEach(insight => {
+      analysis.analysis.combined.keyInsights.forEach((insight) => {
         markdown += `- ${insight}\n`;
       });
     }
-    
+
     return markdown;
   }
 }
@@ -381,10 +440,10 @@ export class ImageAnalyzer {
 /**
  * Quick OCR extraction
  */
-export async function quickOCR(imagePath, languages = ['eng']) {
-  const analyzer = new ImageAnalyzer({ 
+export async function quickOCR(imagePath, languages = ["eng"]) {
+  const analyzer = new ImageAnalyzer({
     ocrLanguages: languages,
-    enableVisualAnalysis: false 
+    enableVisualAnalysis: false,
   });
   return await analyzer.extractText(imagePath);
 }

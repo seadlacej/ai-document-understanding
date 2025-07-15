@@ -9,7 +9,7 @@
     "document-forge": {
       "type": "stdio",
       "command": "npx",
-      "args": ["-y", "@cablate/doc-forge-mcp"],
+      "args": ["-y", "@cablate/mcp-doc-forge"],
       "env": {}
     },
     "filesystem": {
@@ -20,8 +20,8 @@
     },
     "office-powerpoint": {
       "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@gongrzhe/office-powerpoint-mcp-server"],
+      "command": "uvx",
+      "args": ["--from", "office-powerpoint-mcp-server", "ppt_mcp_server"],
       "env": {}
     }
   }

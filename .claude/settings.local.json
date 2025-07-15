@@ -9,7 +9,11 @@
       "Bash(ffmpeg:*)",
       "Bash(npm run clean:*)",
       "Bash(mkdir:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(touch:*)",
+      "mcp__office-powerpoint__open_presentation",
+      "mcp__office-powerpoint__get_presentation_info",
+      "mcp__office-powerpoint__get_slide_info"
     ],
     "deny": []
   },

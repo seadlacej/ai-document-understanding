@@ -6,7 +6,10 @@
   "scripts": {
     "setup": "mkdir -p uploads output/text output/images output/videos output/analysis output/final temp logs",
     "clean": "rm -rf temp/*",
-    "test": "echo 'Upload files to ./uploads folder for analysis'"
+    "test": "echo 'Upload files to ./uploads folder for analysis'",
+    "check:libreoffice": "node src/utils/check-libreoffice.js",
+    "docker:build": "docker build -t ai-document-understanding .",
+    "docker:run": "docker run -v $(pwd)/uploads:/app/uploads -v $(pwd)/output:/app/output ai-document-understanding"
   },
   "dependencies": {
     "adm-zip": "^0.5.10",

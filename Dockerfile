@@ -55,5 +55,4 @@ HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
 # Expose port if needed (adjust based on your app)
 # EXPOSE 3000
 
-# Run the application
-CMD ["node", "index.js"]
+# No default CMD - will be specified at runtime

@@ -37,56 +37,44 @@ mkdir -p output/[YYYYMMDDHHMMSS_filename_with_underlines]/
 
 ##### B. Extract All Content
 
-**Phase 1: Slide Image Generation**
+**Phase 1: Media Extraction**
 
-- Check if LibreOffice is installed using `src/utils/libreoffice-converter.js`
-- If available:
-  - Convert each slide to high-quality PNG image
-  - Save as `slides/slide_001.png`, `slides/slide_002.png`, etc.
-  - Preserves complete visual layout including diagrams, arrows, and spatial relationships
-- If not available:
-  - Use basic text extraction from PPTX parser
-  - Note: This will miss visual relationships and complex layouts
-
-**Phase 2: Media Extraction**
-
-- Extract all embedded images and videos
-- Copy media files to output directory
+- Extract all embedded images and videos and add them into the `/temp` directory.
 - Maintain slide-to-media relationships
+
+**Phase 2: PDF Generation**
+
+- Convert PPTX to PDF using `src/utils/libreoffice-converter.js`
+- Save the new PDF in the directory `output/[YYYYMMDDHHMMSS_filename_with_underlines]/`
+- Preserves complete visual layout including diagrams, arrows, and spatial relationships
 
 **LOG**: Document extraction started, number of slides, LibreOffice availability, media files found
 
 ##### C. Analyze Slide Content with Gemini
 
-**If slide images were generated:**
+**After the PPTX is converted to PDF:**
 
-1. Send each slide image to Gemini for comprehensive visual analysis
+1. Analyze using `src/utils/gemini-PDF-analyzer.js`
 2. Gemini will extract ALL text and understand visual layout
 3. Get complete understanding of slide structure and relationships
 
-**If LibreOffice not available:**
-
-1. Basic text analysis only
-2. Limited understanding of visual relationships
-3. Recommend installing LibreOffice for better results
-
-**LOG**: Each slide content analysis
+**LOG**: Each page content analysis
 
 ##### D. Process Images (One at a Time)
 
-For each extracted image:
+For each extracted image in the `/temp` directory:
 
-1. Save image to output directory
-2. Analyze using `src/utils/gemini-image-analyzer.js`
-3. Record which slide and text block the image relates to
-4. Combine with slide content analysis for context
+1. Analyze using `src/utils/gemini-image-analyzer.js`
+2. Record which slide and text block the image relates to
+3. Combine with slide content analysis for context
+4. Ensure that only images containing valid, meaningful content are saved to the output directory.
 5. Log the analysis results
 
 **LOG**: Each image processing step and results
 
 ##### E. Process Videos (One at a Time)
 
-For each extracted video:
+For each extracted video in the `/temp` directory:
 
 1. Save video to output directory
 2. Analyze using `src/utils/gemini-video-analyzer.js`
@@ -110,10 +98,7 @@ For each media file, maintain clear relationships:
 ```
 output/
 └── YYYYMMDDHHMMSS_filename_with_underlines/
-    ├── slides/                    (if LibreOffice available)
-    │   ├── slide_001.png
-    │   ├── slide_002.png
-    │   └── ...
+    ├── powerpoint.pdf
     ├── image_001.png
     ├── image_002.jpg
     ├── video_001.mp4
@@ -158,7 +143,6 @@ output/
   - Description: [What the image shows]
   - Language: [detected language]
   - Confidence: [high/medium/low]
-  - Layout: [presentation/document/screenshot/photo/diagram]
 
 **Video 1** (video_001.mp4)
 
@@ -225,14 +209,13 @@ Create detailed logs in `/logs/[YYYYMMDDHHMMSS].log`:
 
 1. **Initialize** → Create timestamped log file
 2. **Create Output Directory** → `output/YYYYMMDDHHMMSS_filename_with_underlines/`
-3. **Check LibreOffice** → Verify if slide image generation is available
-4. **Generate Slide Images** → Convert PPTX slides to PNG images (if LibreOffice available)
-5. **Extract and Copy Media Files** → Save all images and videos to output directory
-6. **Analyze Slide Images** → Send each slide image to Gemini for analysis
-7. **Analyze Media Images** → Process each extracted image with Gemini analyzer
-8. **Analyze Videos** → Process each video with Gemini analyzer
-9. **Compile Results** → Create comprehensive `result.md` combining all analyses
-10. **Log Completion** → Record final statistics and duration
+3. **Extract and Copy Media Files** → Save all images and videos to `/temp` directory
+4. **Generate PDF** → Convert PPTX slides to PDF
+5. **Analyze PDF** → Send the new PDF to Gemini for analysis
+6. **Analyze Media Images** → Process each extracted image with Gemini analyzer
+7. **Analyze Videos** → Process each video with Gemini analyzer
+8. **Compile Results** → Create comprehensive `result.md` combining all analyses
+9. **Log Completion** → Record final statistics and duration
 
 **Note**: All temporary files created during analysis (scripts, intermediate files, etc.) MUST be placed in the `/temp` directory, never in the root folder. The `/temp` directory should be cleaned manually when needed.
 
@@ -259,16 +242,6 @@ npm run docker:build
 # Run with Docker
 npm run docker:run
 ```
-
-## Benefits of LibreOffice Slide Image Approach
-
-This approach provides the best understanding of presentation content:
-
-1. **Visual Preservation**: Generates actual slide images preserving exact layouts
-2. **Complete Context**: Maintains all spatial relationships, arrows, and visual connections
-3. **Perfect for Complex Slides**: Captures diagrams, SmartArt, charts, and visual hierarchies
-4. **Gemini Understanding**: AI can analyze slides as humans see them
-5. **No Missing Content**: Everything visible on the slide is captured
 
 ## Important Notes
 

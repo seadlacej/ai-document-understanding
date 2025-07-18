@@ -85,7 +85,6 @@ async function testGeminiVision() {
     console.log("\n📋 Analysis Details:");
     console.log(`- Language: ${result.analysis.language || "unknown"}`);
     console.log(`- Confidence: ${result.analysis.confidence || "unknown"}`);
-    console.log(`- Layout: ${result.analysis.layout || "unknown"}`);
 
     console.log("\n✅ Gemini Vision test completed successfully!");
   } catch (error) {

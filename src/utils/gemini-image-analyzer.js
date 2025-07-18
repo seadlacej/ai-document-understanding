@@ -54,7 +54,6 @@ export class GeminiAnalyzer {
         description: "",
         language: "",
         confidence: "",
-        layout: "",
       },
     };
 
@@ -72,7 +71,6 @@ Your response must be in the following JSON format:
   "description": "Detailed description of what the image shows",
   "language": "detected language (e.g., 'en', 'de', 'fr')",
   "confidence": "high|medium|low",
-  "layout": "presentation|document|screenshot|photo|diagram"
 }
 
 Focus on extracting EVERY piece of text visible in the image. Do not summarize or paraphrase - provide exact transcription.`;
@@ -96,7 +94,6 @@ Focus on extracting EVERY piece of text visible in the image. Do not summarize o
         result.analysis.description = parsed.description || "";
         result.analysis.language = parsed.language || "unknown";
         result.analysis.confidence = parsed.confidence || "unknown";
-        result.analysis.layout = parsed.layout || "unknown";
       } catch (parseError) {
         // If JSON parsing fails, treat the response as plain text
         console.warn("Failed to parse JSON response, using plain text");

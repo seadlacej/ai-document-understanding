@@ -243,6 +243,50 @@ export class LibreOfficeConverter {
   }
 
   /**
+   * Convert PPTX to a single PDF file
+   */
+  async convertToPdf(pptxPath, outputDir) {
+    if (!this.isAvailable) {
+      await this.checkAvailability();
+      if (!this.isAvailable) {
+        throw new Error('LibreOffice is not installed. Please install it first.');
+      }
+    }
+
+    try {
+      // Get absolute paths
+      const absPptxPath = path.resolve(pptxPath);
+      const absOutputDir = path.resolve(outputDir);
+      
+      console.log(`Converting ${path.basename(pptxPath)} to PDF...`);
+      
+      // Convert PPTX to PDF
+      const pdfCmd = `${this.libreOfficePath} --headless --convert-to pdf --outdir "${absOutputDir}" "${absPptxPath}"`;
+      execSync(pdfCmd, { stdio: 'pipe' });
+      
+      // Find the created PDF
+      const files = await fs.readdir(absOutputDir);
+      const pdfFile = files.find(f => f.endsWith('.pdf'));
+      
+      if (!pdfFile) {
+        throw new Error('PDF conversion failed - no PDF file created');
+      }
+      
+      const pdfPath = path.join(absOutputDir, pdfFile);
+      
+      return {
+        success: true,
+        pdfPath: pdfPath,
+        pdfFilename: pdfFile
+      };
+      
+    } catch (error) {
+      console.error('Error converting PPTX to PDF:', error.message);
+      throw error;
+    }
+  }
+
+  /**
    * Clean up any temporary files
    */
   async cleanup() {
@@ -276,6 +320,23 @@ Falling back to comprehensive text extraction...
   
   // Convert slides
   return await converter.convertToSlideImages(pptxPath, outputDir);
+}
+
+/**
+ * Convert PPTX to PDF function
+ */
+export async function convertPptxToPdf(pptxPath, outputDir) {
+  const converter = new LibreOfficeConverter();
+  
+  // Check if LibreOffice is available
+  const isAvailable = await converter.checkAvailability();
+  
+  if (!isAvailable) {
+    throw new Error('LibreOffice is not installed. Cannot convert to PDF.');
+  }
+  
+  // Convert to PDF
+  return await converter.convertToPdf(pptxPath, outputDir);
 }
 
 export default LibreOfficeConverter;

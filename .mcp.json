@@ -1,11 +1,5 @@
 {
   "mcpServers": {
-    "pdf-extraction": {
-      "type": "stdio",
-      "command": "npx",
-      "args": ["-y", "@xraywu/pdf-extraction-mcp"],
-      "env": {}
-    },
     "document-forge": {
       "type": "stdio",
       "command": "npx",

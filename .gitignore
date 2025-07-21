@@ -11,6 +11,9 @@ node_modules/
 
 # Uploads
 uploads/
+output/
+logs/
+temp/
 
 # Environment variables
 .env

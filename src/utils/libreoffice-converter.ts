@@ -102,7 +102,6 @@ export class LibreOfficeConverter {
     }
   }
 
-
   /**
    * Check for problematic fonts in PPTX and log warnings
    */
@@ -225,6 +224,5 @@ If text spacing issues occur:
       throw error;
     }
   }
-
-
+}
 export default LibreOfficeConverter;

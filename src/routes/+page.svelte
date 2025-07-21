@@ -1,4 +1,5 @@
 <script lang="ts">
+  import PocketBase from 'pocketbase';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card";
   import { Button } from "$lib/components/ui/button";
   import { Upload, FileText, Download, Loader2, AlertCircle } from "lucide-svelte";
@@ -7,7 +8,7 @@
   import { invalidate } from '$app/navigation';
   import type { PageData } from './$types';
 
-  export let data: { jobs: any[] };
+  export let data: { jobs: any[], pocketbaseUrl: string };
 
   let files: File[] = [];
   let isDragging = false;
@@ -15,19 +16,38 @@
   let fileInput: HTMLInputElement;
   let pollInterval: ReturnType<typeof setInterval>;
 
-  $: jobs = data.jobs;
+  let jobs = data.jobs;
+  const pb = new PocketBase(data.pocketbaseUrl);
 
   onMount(() => {
     // Poll for updates every 5 seconds
     pollInterval = setInterval(() => {
       invalidate('/api/jobs');
     }, 5000);
+    
+    pb.authStore.loadFromCookie(document?.cookie || '');
+    pb.collection('jobs').subscribe(
+      '*',
+      (event) => {
+        if (event.action === 'create') {
+          jobs = [...jobs, event.record];
+        } else if (event.action === 'update') {
+          jobs = jobs.map(job => 
+            job.id === event.record.id ? event.record : job
+          );
+        } else if (event.action === 'delete') {
+          jobs = jobs.filter(job => job.id !== event.record.id);
+        }
+      }
+    );
   });
+
 
   onDestroy(() => {
     if (pollInterval) {
       clearInterval(pollInterval);
     }
+    pb.collection('jobs').unsubscribe('*');
   });
 
   function handleDrop(e: DragEvent) {
@@ -192,45 +212,47 @@
       </CardDescription>
     </CardHeader>
     <CardContent>
-      {#if jobs.length === 0}
-        <p class="text-center text-gray-500 py-8">
-          No jobs yet. Upload some PowerPoint files to get started.
-        </p>
-      {:else}
-        <div class="space-y-3">
-          {#each jobs as job}
-            <div class="flex items-center justify-between p-4 border rounded-lg">
-              <div class="flex-1">
-                <h4 class="font-medium">{job.filename}</h4>
-                <p class="text-sm {getStatusColor(job.status)} capitalize">
-                  {job.status}
-                  {#if job.status === 'processing'}
-                    <Loader2 class="inline-block ml-1 h-3 w-3 animate-spin" />
-                  {/if}
-                </p>
-                {#if job.error}
-                  <p class="text-sm text-red-600 flex items-center gap-1 mt-1">
-                    <AlertCircle class="h-3 w-3" />
-                    {job.error}
+      {#key jobs}
+        {#if jobs.length === 0}
+          <p class="text-center text-gray-500 py-8">
+            No jobs yet. Upload some PowerPoint files to get started.
+          </p>
+        {:else}
+          <div class="space-y-3">
+            {#each jobs as job}
+              <div class="flex items-center justify-between p-4 border rounded-lg">
+                <div class="flex-1">
+                  <h4 class="font-medium">{job.filename}</h4>
+                  <p class="text-sm {getStatusColor(job.status)} capitalize">
+                    {job.status}
+                    {#if job.status === 'processing'}
+                      <Loader2 class="inline-block ml-1 h-3 w-3 animate-spin" />
+                    {/if}
                   </p>
+                  {#if job.error}
+                    <p class="text-sm text-red-600 flex items-center gap-1 mt-1">
+                      <AlertCircle class="h-3 w-3" />
+                      {job.error}
+                    </p>
+                  {/if}
+                </div>
+                
+                {#if job.status === 'completed' && job.zipPath}
+                  <a href="/api/download/{job.id}" download>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                    >
+                      <Download class="mr-2 h-4 w-4" />
+                      Download
+                    </Button>
+                  </a>
                 {/if}
               </div>
-              
-              {#if job.status === 'completed' && job.zipPath}
-                <a href="/api/download/{job.id}" download>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                  >
-                    <Download class="mr-2 h-4 w-4" />
-                    Download
-                  </Button>
-                </a>
-              {/if}
-            </div>
-          {/each}
-        </div>
-      {/if}
-    </CardContent>
+            {/each}
+          </div>
+          {/if}
+        {/key}
+      </CardContent>
   </Card>
 </div>

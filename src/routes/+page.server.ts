@@ -1,4 +1,6 @@
 import type { Job } from "$lib/server/pocketbase";
+import dotenv from "dotenv";
+dotenv.config();
 
 export const load = async (event: any) => {
   try {
@@ -7,6 +9,7 @@ export const load = async (event: any) => {
       const jobs: Job[] = await response.json();
       return {
         jobs,
+        pocketbaseUrl: process.env.POCKETBASE_URL,
       };
     }
   } catch (error) {

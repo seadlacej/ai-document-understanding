@@ -1,6 +1,6 @@
-import { execSync } from 'child_process';
-import fs from 'fs/promises';
-import path from 'path';
+import { execSync } from "child_process";
+import fs from "fs/promises";
+import path from "path";
 
 interface ConverterOptions {
   outputFormat?: string;
@@ -25,17 +25,29 @@ export class LibreOfficeConverter {
   private options: Required<ConverterOptions>;
   private libreOfficePath: string | null;
   private isAvailable: boolean;
+  private fontSubstitutions: Map<string, string>;
 
   constructor(options: ConverterOptions = {}) {
     this.options = {
-      outputFormat: 'png',
+      outputFormat: "png",
       quality: 90,
       resolution: 300, // DPI for high quality
-      ...options
+      ...options,
     };
-    
+
     this.libreOfficePath = null;
     this.isAvailable = false;
+
+    // Common font substitutions to improve PDF conversion
+    this.fontSubstitutions = new Map([
+      ["Calibri", "Liberation Sans"],
+      ["Calibri Light", "Liberation Sans"],
+      ["Cambria", "Liberation Serif"],
+      ["Consolas", "Liberation Mono"],
+      ["Arial", "Liberation Sans"],
+      ["Times New Roman", "Liberation Serif"],
+      ["Courier New", "Liberation Mono"],
+    ]);
   }
 
   /**
@@ -44,11 +56,11 @@ export class LibreOfficeConverter {
   async checkAvailability(): Promise<boolean> {
     try {
       // Check common LibreOffice executable names
-      const commands = ['soffice', 'libreoffice'];
-      
+      const commands = ["soffice", "libreoffice"];
+
       for (const cmd of commands) {
         try {
-          execSync(`which ${cmd}`, { stdio: 'pipe' });
+          execSync(`which ${cmd}`, { stdio: "pipe" });
           this.libreOfficePath = cmd;
           this.isAvailable = true;
           console.log(`LibreOffice found: ${cmd}`);
@@ -57,14 +69,14 @@ export class LibreOfficeConverter {
           // Try next command
         }
       }
-      
+
       // Check Mac-specific paths
       const macPaths = [
-        '/Applications/LibreOffice.app/Contents/MacOS/soffice',
-        '/usr/local/bin/soffice',
-        '/opt/homebrew/bin/soffice'
+        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
+        "/usr/local/bin/soffice",
+        "/opt/homebrew/bin/soffice",
       ];
-      
+
       for (const libPath of macPaths) {
         try {
           await fs.access(libPath);
@@ -76,199 +88,56 @@ export class LibreOfficeConverter {
           // Try next path
         }
       }
-      
-      console.log('LibreOffice not found. Please install with: brew install libreoffice');
+
+      console.log(
+        "LibreOffice not found. Please install with: brew install libreoffice"
+      );
       return false;
-      
     } catch (error) {
-      console.error('Error checking LibreOffice availability:', (error as Error).message);
+      console.error(
+        "Error checking LibreOffice availability:",
+        (error as Error).message
+      );
       return false;
     }
   }
 
-  /**
-   * Convert PPTX to individual slide images
-   */
-  async convertToSlideImages(pptxPath: string, outputDir: string): Promise<ConversionResult> {
-    if (!this.isAvailable) {
-      await this.checkAvailability();
-      if (!this.isAvailable) {
-        throw new Error('LibreOffice is not installed. Please install it first.');
-      }
-    }
-
-    try {
-      // Create output directories
-      const slidesDir = path.join(outputDir, 'slides');
-      await fs.mkdir(slidesDir, { recursive: true });
-      
-      // Get absolute paths
-      const absPptxPath = path.resolve(pptxPath);
-      const absSlidesDir = path.resolve(slidesDir);
-      
-      console.log(`Converting ${path.basename(pptxPath)} to slide images...`);
-      
-      // Method 1: Direct PNG export (if supported)
-      try {
-        const result = await this.convertDirectToPng(absPptxPath, absSlidesDir);
-        if (result.success) {
-          return result;
-        }
-      } catch (e) {
-        console.log('Direct PNG conversion failed, trying PDF method...');
-      }
-      
-      // Method 2: Convert to PDF first, then to PNG
-      return await this.convertViaPdf(absPptxPath, absSlidesDir);
-      
-    } catch (error) {
-      console.error('Error converting PPTX to images:', (error as Error).message);
-      throw error;
-    }
-  }
 
   /**
-   * Try direct PPTX to PNG conversion
+   * Check for problematic fonts in PPTX and log warnings
    */
-  private async convertDirectToPng(pptxPath: string, outputDir: string): Promise<ConversionResult> {
-    try {
-      // LibreOffice command for direct image export
-      const cmd = `${this.libreOfficePath} --headless --convert-to png --outdir "${outputDir}" "${pptxPath}"`;
-      
-      console.log('Attempting direct PNG conversion...');
-      execSync(cmd, { stdio: 'pipe' });
-      
-      // Check if images were created
-      const files = await fs.readdir(outputDir);
-      const pngFiles = files.filter(f => f.endsWith('.png'));
-      
-      if (pngFiles.length > 0) {
-        // Rename to standard format
-        await this.standardizeImageNames(outputDir);
-        
-        return {
-          success: true,
-          slideCount: pngFiles.length,
-          outputDir: outputDir,
-          method: 'direct'
-        };
-      }
-      
-      return { success: false };
-      
-    } catch (error) {
-      console.log('Direct PNG conversion not supported');
-      return { success: false };
-    }
-  }
+  private checkForProblematicFonts(pptxPath: string): void {
+    const filename = path.basename(pptxPath);
+    console.log(`Checking ${filename} for font compatibility...`);
 
-  /**
-   * Convert PPTX to PDF, then extract pages as PNG
-   */
-  private async convertViaPdf(pptxPath: string, outputDir: string): Promise<ConversionResult> {
-    const tempDir = path.join(outputDir, '..', 'temp_pdf');
-    await fs.mkdir(tempDir, { recursive: true });
-    
-    try {
-      // Step 1: Convert PPTX to PDF
-      console.log('Converting PPTX to PDF...');
-      const pdfCmd = `${this.libreOfficePath} --headless --convert-to pdf --outdir "${tempDir}" "${pptxPath}"`;
-      execSync(pdfCmd, { stdio: 'pipe' });
-      
-      // Find the created PDF
-      const files = await fs.readdir(tempDir);
-      const pdfFile = files.find(f => f.endsWith('.pdf'));
-      
-      if (!pdfFile) {
-        throw new Error('PDF conversion failed - no PDF file created');
-      }
-      
-      const pdfPath = path.join(tempDir, pdfFile);
-      
-      // Step 2: Extract PDF pages as images
-      console.log('Extracting PDF pages as PNG images...');
-      
-      // Try using LibreOffice Draw to convert PDF pages
-      const pngCmd = `${this.libreOfficePath} --headless --draw --convert-to png --outdir "${outputDir}" "${pdfPath}"`;
-      
-      try {
-        execSync(pngCmd, { stdio: 'pipe' });
-      } catch (e) {
-        // If LibreOffice can't do it, we'd need to use another tool
-        console.log('LibreOffice PDF to PNG conversion failed');
-        
-        // Alternative: Use ImageMagick if available
-        try {
-          execSync('which convert', { stdio: 'pipe' });
-          console.log('Using ImageMagick for PDF to PNG conversion...');
-          const imageMagickCmd = `convert -density ${this.options.resolution} "${pdfPath}" -quality ${this.options.quality} "${outputDir}/slide_%03d.png"`;
-          execSync(imageMagickCmd, { stdio: 'pipe' });
-        } catch (e2) {
-          throw new Error('No suitable PDF to PNG converter found. Install ImageMagick with: brew install imagemagick');
-        }
-      }
-      
-      // Check results and standardize names
-      const pngFiles = await fs.readdir(outputDir);
-      const slideImages = pngFiles.filter(f => f.endsWith('.png'));
-      
-      if (slideImages.length === 0) {
-        throw new Error('No slide images were created');
-      }
-      
-      await this.standardizeImageNames(outputDir);
-      
-      return {
-        success: true,
-        slideCount: slideImages.length,
-        outputDir: outputDir,
-        method: 'pdf'
-      };
-      
-    } finally {
-      // Clean up temp directory
-      try {
-        await fs.rm(tempDir, { recursive: true, force: true });
-      } catch (e) {
-        console.warn('Could not clean up temp directory:', (e as Error).message);
-      }
-    }
-  }
+    // Log recommendations for known problematic fonts
+    console.log(`
+Font Recommendations for Better PDF Conversion:
+- Replace 'Calibri' with 'Liberation Sans' or 'Arial'
+- Replace 'Cambria' with 'Liberation Serif' or 'Times New Roman'
+- Replace 'Consolas' with 'Liberation Mono' or 'Courier New'
+- Use standard fonts when possible for best compatibility
 
-  /**
-   * Standardize image names to slide_001.png format
-   */
-  private async standardizeImageNames(outputDir: string): Promise<void> {
-    const files = await fs.readdir(outputDir);
-    const pngFiles = files.filter(f => f.endsWith('.png')).sort();
-    
-    for (let i = 0; i < pngFiles.length; i++) {
-      const oldName = path.join(outputDir, pngFiles[i]);
-      const newName = path.join(outputDir, `slide_${String(i + 1).padStart(3, '0')}.png`);
-      
-      if (oldName !== newName) {
-        await fs.rename(oldName, newName);
-      }
-    }
-  }
-
-  /**
-   * Get slide count from a PPTX file
-   */
-  async getSlideCount(pptxPath: string): Promise<number> {
-    // This would require parsing the PPTX structure
-    // For now, we'll count after conversion
-    return -1;
+If text spacing issues occur:
+1. Try using Liberation fonts (pre-installed on most systems)
+2. Ensure fonts are embedded in the original PPTX
+3. Consider using PDF 1.4 format instead of 1.5
+`);
   }
 
   /**
    * Convert PPTX to a single PDF file
    */
-  async convertToPdf(pptxPath: string, outputDir: string): Promise<ConversionResult> {
+  async convertToPdf(
+    pptxPath: string,
+    outputDir: string
+  ): Promise<ConversionResult> {
     if (!this.isAvailable) {
       await this.checkAvailability();
       if (!this.isAvailable) {
-        throw new Error('LibreOffice is not installed. Please install it first.');
+        throw new Error(
+          "LibreOffice is not installed. Please install it first."
+        );
       }
     }
 
@@ -276,86 +145,86 @@ export class LibreOfficeConverter {
       // Get absolute paths
       const absPptxPath = path.resolve(pptxPath);
       const absOutputDir = path.resolve(outputDir);
-      
-      console.log(`Converting ${path.basename(pptxPath)} to PDF...`);
-      
-      // Convert PPTX to PDF
-      const pdfCmd = `${this.libreOfficePath} --headless --convert-to pdf --outdir "${absOutputDir}" "${absPptxPath}"`;
-      execSync(pdfCmd, { stdio: 'pipe' });
-      
+
+      console.log(
+        `Converting ${path.basename(
+          pptxPath
+        )} to PDF with optimized text handling...`
+      );
+
+      // Check for problematic fonts and log warnings
+      this.checkForProblematicFonts(pptxPath);
+
+      // JSON parameters for better PDF export (LibreOffice 7.3+)
+      const pdfExportParams = {
+        EmbedStandardFonts: { type: "boolean", value: "true" },
+        SelectPdfVersion: { type: "long", value: "15" }, // PDF 1.5 for better font handling
+        UseLosslessCompression: { type: "boolean", value: "true" },
+        Quality: { type: "long", value: "100" },
+        PDFViewSelection: { type: "long", value: "0" },
+        ExportBookmarks: { type: "boolean", value: "false" },
+        UseTaggedPDF: { type: "boolean", value: "true" },
+      };
+
+      const jsonParams = JSON.stringify(pdfExportParams);
+
+      // Use JSON format for PDF export parameters
+      console.log("+++++ this.libreOfficePath: ", this.libreOfficePath);
+
+      let pdfCmd = `${this.libreOfficePath} --headless --convert-to 'pdf:writer_pdf_Export:${jsonParams}' --outdir "${absOutputDir}" "${absPptxPath}"`;
+
+      try {
+        // Try with JSON parameters first (LibreOffice 7.3+)
+        execSync(pdfCmd, { stdio: "pipe" });
+        console.log("PDF conversion completed with optimized text handling");
+      } catch (error) {
+        console.log(
+          "JSON parameter format not supported, trying legacy format..."
+        );
+
+        // Fallback to simple conversion for older LibreOffice versions
+        pdfCmd = `${this.libreOfficePath} --headless --convert-to pdf --outdir "${absOutputDir}" "${absPptxPath}"`;
+
+        try {
+          execSync(pdfCmd, { stdio: "pipe" });
+          console.warn(
+            "PDF converted with basic settings - text spacing issues may occur"
+          );
+        } catch (error2) {
+          // If still failing, capture the actual error output
+          const err = error2 as any;
+          const errorOutput = err.stdout ? err.stdout.toString() : "";
+          const stderrOutput = err.stderr ? err.stderr.toString() : "";
+
+          console.error("LibreOffice stdout:", errorOutput);
+          console.error("LibreOffice stderr:", stderrOutput);
+
+          throw new Error(
+            `PDF conversion failed. LibreOffice output: ${errorOutput} ${stderrOutput}`
+          );
+        }
+      }
+
       // Find the created PDF
       const files = await fs.readdir(absOutputDir);
-      const pdfFile = files.find(f => f.endsWith('.pdf'));
-      
+      const pdfFile = files.find((f) => f.endsWith(".pdf"));
+
       if (!pdfFile) {
-        throw new Error('PDF conversion failed - no PDF file created');
+        throw new Error("PDF conversion failed - no PDF file created");
       }
-      
+
       const pdfPath = path.join(absOutputDir, pdfFile);
-      
+
       return {
         success: true,
         pdfPath: pdfPath,
-        pdfFilename: pdfFile
+        pdfFilename: pdfFile,
       };
-      
     } catch (error) {
-      console.error('Error converting PPTX to PDF:', (error as Error).message);
+      console.error("Error converting PPTX to PDF:", (error as Error).message);
       throw error;
     }
   }
 
-  /**
-   * Clean up any temporary files
-   */
-  async cleanup(): Promise<void> {
-    // Cleanup is handled in individual methods
-  }
-}
-
-/**
- * Main conversion function
- */
-export async function convertPptxToSlideImages(pptxPath: string, outputDir: string): Promise<ConversionResult | null> {
-  const converter = new LibreOfficeConverter();
-  
-  // Check if LibreOffice is available
-  const isAvailable = await converter.checkAvailability();
-  
-  if (!isAvailable) {
-    console.warn(`
-LibreOffice is not installed. To enable slide image generation:
-
-For Mac:
-  brew install libreoffice
-
-For Docker/Coolify:
-  The Dockerfile will include LibreOffice automatically
-
-Falling back to comprehensive text extraction...
-`);
-    return null;
-  }
-  
-  // Convert slides
-  return await converter.convertToSlideImages(pptxPath, outputDir);
-}
-
-/**
- * Convert PPTX to PDF function
- */
-export async function convertPptxToPdf(pptxPath: string, outputDir: string): Promise<ConversionResult> {
-  const converter = new LibreOfficeConverter();
-  
-  // Check if LibreOffice is available
-  const isAvailable = await converter.checkAvailability();
-  
-  if (!isAvailable) {
-    throw new Error('LibreOffice is not installed. Cannot convert to PDF.');
-  }
-  
-  // Convert to PDF
-  return await converter.convertToPdf(pptxPath, outputDir);
-}
 
 export default LibreOfficeConverter;

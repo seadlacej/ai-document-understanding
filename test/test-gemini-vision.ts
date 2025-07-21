@@ -1,4 +1,4 @@
-import { GeminiAnalyzer } from "./src/utils/gemini-image-analyzer.js";
+import { GeminiAnalyzer } from "../src/utils/gemini-image-analyzer.js";
 import fs from "fs/promises";
 import path from "path";
 import dotenv from "dotenv";
@@ -9,7 +9,7 @@ dotenv.config();
 console.log("🔷 Gemini Vision Test Tool");
 console.log("=".repeat(50));
 
-async function testGeminiVision() {
+async function testGeminiVision(): Promise<void> {
   // Check API key
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -88,13 +88,14 @@ async function testGeminiVision() {
 
     console.log("\n✅ Gemini Vision test completed successfully!");
   } catch (error) {
-    console.error("\n❌ Gemini Vision test failed:", error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("\n❌ Gemini Vision test failed:", errorMessage);
 
-    if (error.message.includes("API key")) {
+    if (errorMessage.includes("API key")) {
       console.log("⚠️ Invalid API key - please check your Gemini API key");
-    } else if (error.message.includes("quota")) {
+    } else if (errorMessage.includes("quota")) {
       console.log("⚠️ API quota exceeded - please check your usage limits");
-    } else if (error.message.includes("model")) {
+    } else if (errorMessage.includes("model")) {
       console.log(
         "⚠️ Model not available - ensure you have access to gemini-2.5-flash"
       );

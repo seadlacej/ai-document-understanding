@@ -1,0 +1,192 @@
+{
+  "collections": [
+    {
+      "id": "jobs",
+      "name": "jobs",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "system": false,
+          "id": "filename",
+          "name": "filename",
+          "type": "text",
+          "required": true,
+          "presentable": true,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "pattern": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "status",
+          "name": "status",
+          "type": "select",
+          "required": true,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "maxSelect": 1,
+            "values": [
+              "pending",
+              "processing",
+              "completed",
+              "failed"
+            ]
+          }
+        },
+        {
+          "system": false,
+          "id": "uploadedAt",
+          "name": "uploadedAt",
+          "type": "date",
+          "required": true,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": "",
+            "max": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "completedAt",
+          "name": "completedAt",
+          "type": "date",
+          "required": false,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": "",
+            "max": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "outputPath",
+          "name": "outputPath",
+          "type": "text",
+          "required": false,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "pattern": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "zipPath",
+          "name": "zipPath",
+          "type": "text",
+          "required": false,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "pattern": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "error",
+          "name": "error",
+          "type": "text",
+          "required": false,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "pattern": ""
+          }
+        }
+      ],
+      "indexes": [],
+      "listRule": null,
+      "viewRule": null,
+      "createRule": null,
+      "updateRule": null,
+      "deleteRule": null,
+      "options": {}
+    },
+    {
+      "id": "files",
+      "name": "files",
+      "type": "base",
+      "system": false,
+      "schema": [
+        {
+          "system": false,
+          "id": "jobId",
+          "name": "jobId",
+          "type": "relation",
+          "required": true,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "collectionId": "jobs",
+            "cascadeDelete": true,
+            "minSelect": null,
+            "maxSelect": 1,
+            "displayFields": null
+          }
+        },
+        {
+          "system": false,
+          "id": "originalName",
+          "name": "originalName",
+          "type": "text",
+          "required": true,
+          "presentable": true,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "pattern": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "savedPath",
+          "name": "savedPath",
+          "type": "text",
+          "required": true,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "pattern": ""
+          }
+        },
+        {
+          "system": false,
+          "id": "fileSize",
+          "name": "fileSize",
+          "type": "number",
+          "required": true,
+          "presentable": false,
+          "unique": false,
+          "options": {
+            "min": null,
+            "max": null,
+            "noDecimal": true
+          }
+        }
+      ],
+      "indexes": [],
+      "listRule": null,
+      "viewRule": null,
+      "createRule": null,
+      "updateRule": null,
+      "deleteRule": null,
+      "options": {}
+    }
+  ]
+}

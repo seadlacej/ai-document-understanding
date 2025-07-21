@@ -3,7 +3,7 @@ import { LibreOfficeConverter } from './libreoffice-converter.js';
 /**
  * Check if LibreOffice is installed and provide installation instructions
  */
-async function checkLibreOffice() {
+async function checkLibreOffice(): Promise<void> {
   console.log('Checking LibreOffice installation...\n');
   
   const converter = new LibreOfficeConverter();
@@ -11,7 +11,6 @@ async function checkLibreOffice() {
   
   if (isAvailable) {
     console.log('✅ LibreOffice is installed and ready to use!');
-    console.log(`   Path: ${converter.libreOfficePath}`);
     console.log('\n📄 PDF conversion is available.');
   } else {
     console.log('❌ LibreOffice is not installed.\n');

@@ -7,18 +7,66 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
+interface VideoAnalyzerOptions {
+  apiKey?: string;
+  model?: string;
+  temperature?: number;
+}
+
+interface VideoScene {
+  startTime: string;
+  endTime: string;
+  description: string;
+  spokenText?: string;
+}
+
+interface VideoAnalysis {
+  audioTranscription: string;
+  visualDescription: string;
+  scenes: VideoScene[];
+  duration: number;
+  language: string;
+  summary?: string;
+}
+
+interface VideoAnalysisResult {
+  filename: string;
+  source: string;
+  model: string;
+  analysis: VideoAnalysis;
+  error?: string;
+  transcription?: string;
+  description?: string;
+}
+
+interface VideoContext {
+  source?: string;
+  slideNumber?: number | string;
+}
+
+interface VideoInfo {
+  duration: number;
+  formatName?: string;
+  size?: number;
+  bitRate?: number;
+}
+
 /**
  * Gemini Video Analyzer
- * Uses Google's Gemini 2.0 Flash model for video analysis and transcription
+ * Uses Google's Gemini 2.5 Flash model for video analysis and transcription
  * Processes both audio and visual content
  */
 export class GeminiVideoAnalyzer {
-  constructor(options = {}) {
+  private options: VideoAnalyzerOptions & { apiKey: string };
+  private genAI: GoogleGenerativeAI;
+  private fileManager: GoogleAIFileManager;
+  private model: any;
+
+  constructor(options: VideoAnalyzerOptions = {}) {
     this.options = {
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: process.env.GEMINI_API_KEY || '',
       model: "gemini-2.5-flash",
       temperature: 0.1,
-      // maxTokens: 8000,
       ...options,
     };
 
@@ -32,25 +80,21 @@ export class GeminiVideoAnalyzer {
     this.genAI = new GoogleGenerativeAI(this.options.apiKey);
     this.fileManager = new GoogleAIFileManager(this.options.apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: this.options.model,
+      model: this.options.model || "gemini-2.5-flash",
       generationConfig: {
         temperature: this.options.temperature,
-        // maxOutputTokens: this.options.maxTokens,
       },
     });
   }
 
   /**
    * Analyze video using Gemini Vision
-   * @param {string} videoPath - Path to video file
-   * @param {Object} context - Additional context
-   * @returns {Promise<Object>} Analysis results
    */
-  async analyzeVideo(videoPath, context = {}) {
-    const result = {
+  async analyzeVideo(videoPath: string, context: VideoContext = {}): Promise<VideoAnalysisResult> {
+    const result: VideoAnalysisResult = {
       filename: path.basename(videoPath),
       source: context.source || "unknown",
-      model: this.options.model,
+      model: this.options.model || "gemini-2.5-flash",
       analysis: {
         audioTranscription: "",
         visualDescription: "",
@@ -139,11 +183,17 @@ IMPORTANT:
         if (parsed.overallSummary) {
           result.analysis.summary = parsed.overallSummary;
         }
+
+        // Add properties for backwards compatibility
+        result.transcription = result.analysis.audioTranscription;
+        result.description = result.analysis.visualDescription;
       } catch (parseError) {
         // If JSON parsing fails, treat as plain text transcription
         console.warn("Failed to parse JSON response, using plain text");
         result.analysis.audioTranscription = responseText;
         result.analysis.visualDescription = "Raw transcription from Gemini";
+        result.transcription = responseText;
+        result.description = "Raw transcription from Gemini";
       }
 
       // Clean up uploaded file
@@ -151,17 +201,18 @@ IMPORTANT:
         await this.fileManager.deleteFile(file.name);
         console.log("🧹 Cleaned up uploaded file");
       } catch (deleteError) {
-        console.warn("Could not delete uploaded file:", deleteError.message);
+        console.warn("Could not delete uploaded file:", (deleteError as Error).message);
       }
     } catch (error) {
-      console.error(`Error analyzing video with Gemini: ${error.message}`);
-      result.error = error.message;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Error analyzing video with Gemini: ${errorMessage}`);
+      result.error = errorMessage;
 
-      if (error.message.includes("API key")) {
+      if (errorMessage.includes("API key")) {
         result.error = "Invalid or missing Gemini API key";
-      } else if (error.message.includes("quota")) {
+      } else if (errorMessage.includes("quota")) {
         result.error = "Gemini API quota exceeded";
-      } else if (error.message.includes("size")) {
+      } else if (errorMessage.includes("size")) {
         result.error = "Video file too large for Gemini API";
       }
     }
@@ -172,7 +223,7 @@ IMPORTANT:
   /**
    * Get video information using ffprobe
    */
-  async getVideoInfo(videoPath) {
+  async getVideoInfo(videoPath: string): Promise<VideoInfo> {
     try {
       const output = execSync(
         `ffprobe -v quiet -print_format json -show_format -show_streams "${videoPath}"`,
@@ -189,7 +240,7 @@ IMPORTANT:
         bitRate: parseInt(info.format.bit_rate),
       };
     } catch (error) {
-      console.warn("Could not get video info:", error.message);
+      console.warn("Could not get video info:", (error as Error).message);
       return { duration: 0 };
     }
   }
@@ -197,9 +248,9 @@ IMPORTANT:
   /**
    * Get MIME type from file extension
    */
-  getMimeType(filePath) {
+  private getMimeType(filePath: string): string {
     const ext = path.extname(filePath).toLowerCase();
-    const mimeTypes = {
+    const mimeTypes: Record<string, string> = {
       ".mp4": "video/mp4",
       ".avi": "video/x-msvideo",
       ".mov": "video/quicktime",
@@ -218,7 +269,7 @@ IMPORTANT:
 /**
  * Full video analysis
  */
-export async function analyzeVideoWithGemini(videoPath, options = {}) {
+export async function analyzeVideoWithGemini(videoPath: string, options: VideoAnalyzerOptions = {}): Promise<VideoAnalysisResult> {
   const analyzer = new GeminiVideoAnalyzer(options);
   return await analyzer.analyzeVideo(videoPath);
 }

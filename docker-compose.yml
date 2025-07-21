@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Main application
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ai-doc-app
+    restart: unless-stopped
+    ports:
+      - "5173:5173"  # Vite dev server port
+      - "4173:4173"  # Vite preview port
+    volumes:
+      - ./uploads:/app/uploads
+      - ./output:/app/output
+      - ./temp:/app/temp
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    environment:
+      - NODE_ENV=${NODE_ENV:-development}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POCKETBASE_URL=${POCKETBASE_URL:-https://pb-document-analyzer.coolify.create.at/}
+    command: npm run dev -- --host 0.0.0.0
+    networks:
+      - ai-doc-network
+
+  # Production build (optional - comment out if not needed)
+  app-prod:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    container_name: ai-doc-app-prod
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./uploads:/app/uploads
+      - ./output:/app/output
+      - ./temp:/app/temp
+      - ./logs:/app/logs
+      - ./.env:/app/.env
+    environment:
+      - NODE_ENV=production
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - POCKETBASE_URL=${POCKETBASE_URL:-https://pb-document-analyzer.coolify.create.at/}
+    profiles:
+      - production
+    networks:
+      - ai-doc-network
+
+networks:
+  ai-doc-network:
+    driver: bridge

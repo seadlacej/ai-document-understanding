@@ -1,8 +1,8 @@
-import { convertPptxToSlideImages } from './src/utils/libreoffice-converter.js';
+import { convertPptxToSlideImages } from '../src/utils/libreoffice-converter.js';
 import path from 'path';
 import fs from 'fs/promises';
 
-async function testConversion() {
+async function testConversion(): Promise<void> {
   const pptxPath = 'uploads/Feinkonzeptionsworkshop.pptx';
   const outputDir = `output/test_libreoffice_${Date.now()}`;
   
@@ -34,7 +34,7 @@ async function testConversion() {
     }
     
   } catch (error) {
-    console.error('\n❌ Error during conversion:', error.message);
+    console.error('\n❌ Error during conversion:', (error as Error).message);
   }
 }
 

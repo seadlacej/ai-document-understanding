@@ -2,12 +2,31 @@ import { execSync } from 'child_process';
 import fs from 'fs/promises';
 import path from 'path';
 
+interface ConverterOptions {
+  outputFormat?: string;
+  quality?: number;
+  resolution?: number;
+}
+
+interface ConversionResult {
+  success: boolean;
+  slideCount?: number;
+  outputDir?: string;
+  method?: string;
+  pdfPath?: string;
+  pdfFilename?: string;
+}
+
 /**
  * LibreOffice Converter for PPTX to PNG slides
  * Works on both local Mac (with brew install libreoffice) and Docker environments
  */
 export class LibreOfficeConverter {
-  constructor(options = {}) {
+  private options: Required<ConverterOptions>;
+  private libreOfficePath: string | null;
+  private isAvailable: boolean;
+
+  constructor(options: ConverterOptions = {}) {
     this.options = {
       outputFormat: 'png',
       quality: 90,
@@ -22,7 +41,7 @@ export class LibreOfficeConverter {
   /**
    * Check if LibreOffice is installed and available
    */
-  async checkAvailability() {
+  async checkAvailability(): Promise<boolean> {
     try {
       // Check common LibreOffice executable names
       const commands = ['soffice', 'libreoffice'];
@@ -46,12 +65,12 @@ export class LibreOfficeConverter {
         '/opt/homebrew/bin/soffice'
       ];
       
-      for (const path of macPaths) {
+      for (const libPath of macPaths) {
         try {
-          await fs.access(path);
-          this.libreOfficePath = path;
+          await fs.access(libPath);
+          this.libreOfficePath = libPath;
           this.isAvailable = true;
-          console.log(`LibreOffice found at: ${path}`);
+          console.log(`LibreOffice found at: ${libPath}`);
           return true;
         } catch (e) {
           // Try next path
@@ -62,7 +81,7 @@ export class LibreOfficeConverter {
       return false;
       
     } catch (error) {
-      console.error('Error checking LibreOffice availability:', error.message);
+      console.error('Error checking LibreOffice availability:', (error as Error).message);
       return false;
     }
   }
@@ -70,7 +89,7 @@ export class LibreOfficeConverter {
   /**
    * Convert PPTX to individual slide images
    */
-  async convertToSlideImages(pptxPath, outputDir) {
+  async convertToSlideImages(pptxPath: string, outputDir: string): Promise<ConversionResult> {
     if (!this.isAvailable) {
       await this.checkAvailability();
       if (!this.isAvailable) {
@@ -103,7 +122,7 @@ export class LibreOfficeConverter {
       return await this.convertViaPdf(absPptxPath, absSlidesDir);
       
     } catch (error) {
-      console.error('Error converting PPTX to images:', error.message);
+      console.error('Error converting PPTX to images:', (error as Error).message);
       throw error;
     }
   }
@@ -111,7 +130,7 @@ export class LibreOfficeConverter {
   /**
    * Try direct PPTX to PNG conversion
    */
-  async convertDirectToPng(pptxPath, outputDir) {
+  private async convertDirectToPng(pptxPath: string, outputDir: string): Promise<ConversionResult> {
     try {
       // LibreOffice command for direct image export
       const cmd = `${this.libreOfficePath} --headless --convert-to png --outdir "${outputDir}" "${pptxPath}"`;
@@ -146,7 +165,7 @@ export class LibreOfficeConverter {
   /**
    * Convert PPTX to PDF, then extract pages as PNG
    */
-  async convertViaPdf(pptxPath, outputDir) {
+  private async convertViaPdf(pptxPath: string, outputDir: string): Promise<ConversionResult> {
     const tempDir = path.join(outputDir, '..', 'temp_pdf');
     await fs.mkdir(tempDir, { recursive: true });
     
@@ -211,7 +230,7 @@ export class LibreOfficeConverter {
       try {
         await fs.rm(tempDir, { recursive: true, force: true });
       } catch (e) {
-        console.warn('Could not clean up temp directory:', e.message);
+        console.warn('Could not clean up temp directory:', (e as Error).message);
       }
     }
   }
@@ -219,7 +238,7 @@ export class LibreOfficeConverter {
   /**
    * Standardize image names to slide_001.png format
    */
-  async standardizeImageNames(outputDir) {
+  private async standardizeImageNames(outputDir: string): Promise<void> {
     const files = await fs.readdir(outputDir);
     const pngFiles = files.filter(f => f.endsWith('.png')).sort();
     
@@ -236,7 +255,7 @@ export class LibreOfficeConverter {
   /**
    * Get slide count from a PPTX file
    */
-  async getSlideCount(pptxPath) {
+  async getSlideCount(pptxPath: string): Promise<number> {
     // This would require parsing the PPTX structure
     // For now, we'll count after conversion
     return -1;
@@ -245,7 +264,7 @@ export class LibreOfficeConverter {
   /**
    * Convert PPTX to a single PDF file
    */
-  async convertToPdf(pptxPath, outputDir) {
+  async convertToPdf(pptxPath: string, outputDir: string): Promise<ConversionResult> {
     if (!this.isAvailable) {
       await this.checkAvailability();
       if (!this.isAvailable) {
@@ -281,7 +300,7 @@ export class LibreOfficeConverter {
       };
       
     } catch (error) {
-      console.error('Error converting PPTX to PDF:', error.message);
+      console.error('Error converting PPTX to PDF:', (error as Error).message);
       throw error;
     }
   }
@@ -289,7 +308,7 @@ export class LibreOfficeConverter {
   /**
    * Clean up any temporary files
    */
-  async cleanup() {
+  async cleanup(): Promise<void> {
     // Cleanup is handled in individual methods
   }
 }
@@ -297,7 +316,7 @@ export class LibreOfficeConverter {
 /**
  * Main conversion function
  */
-export async function convertPptxToSlideImages(pptxPath, outputDir) {
+export async function convertPptxToSlideImages(pptxPath: string, outputDir: string): Promise<ConversionResult | null> {
   const converter = new LibreOfficeConverter();
   
   // Check if LibreOffice is available
@@ -325,7 +344,7 @@ Falling back to comprehensive text extraction...
 /**
  * Convert PPTX to PDF function
  */
-export async function convertPptxToPdf(pptxPath, outputDir) {
+export async function convertPptxToPdf(pptxPath: string, outputDir: string): Promise<ConversionResult> {
   const converter = new LibreOfficeConverter();
   
   // Check if LibreOffice is available

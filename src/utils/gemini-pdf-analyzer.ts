@@ -6,15 +6,67 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
+interface PDFAnalyzerOptions {
+  apiKey?: string;
+  model?: string;
+  temperature?: number;
+}
+
+interface VisualElements {
+  hasCharts: boolean;
+  hasDiagrams: boolean;
+  hasImages: boolean;
+  hasFlowchart: boolean;
+  description: string;
+}
+
+interface LayoutInfo {
+  type: "title" | "content" | "titleAndContent" | "comparison" | "sectionHeader" | "blank" | "custom";
+  columns: number;
+  hasTable: boolean;
+}
+
+interface PDFAnalysis {
+  slideNumber: number | string;
+  extractedText: string;
+  title?: string;
+  bulletPoints?: string[];
+  visualElements?: VisualElements;
+  layout?: LayoutInfo;
+  language?: string;
+  keyTopics?: string[];
+  relationships?: string;
+  error?: string;
+  pageCount?: number;
+}
+
+interface PDFAnalysisResult {
+  filename: string;
+  slideNumber: number | string;
+  model: string;
+  analysis?: PDFAnalysis;
+  error?: string;
+  text?: string;
+  pageCount?: number;
+}
+
+interface PDFAnalysisOptions {
+  slideNumber?: number | string;
+}
+
 /**
  * Gemini PDF Analyzer
  * Uses Google's Gemini 2.5 Flash model for PDF analysis
  * Extracts text and understands layout/structure
  */
 export class GeminiPDFAnalyzer {
-  constructor(options = {}) {
+  private options: PDFAnalyzerOptions & { apiKey: string };
+  private genAI: GoogleGenerativeAI;
+  private fileManager: GoogleAIFileManager;
+
+  constructor(options: PDFAnalyzerOptions = {}) {
     this.options = {
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: process.env.GEMINI_API_KEY || '',
       model: "gemini-2.5-flash",
       temperature: 0.1,
       ...options,
@@ -32,11 +84,8 @@ export class GeminiPDFAnalyzer {
 
   /**
    * Analyze a PDF file with Gemini
-   * @param {string} pdfPath - Path to the PDF file
-   * @param {Object} options - Analysis options
-   * @returns {Promise<Object>} Analysis results
    */
-  async analyzePDF(pdfPath, options = {}) {
+  async analyzePDF(pdfPath: string, options: PDFAnalysisOptions = {}): Promise<PDFAnalysisResult> {
     const filename = path.basename(pdfPath);
     const slideNumber =
       options.slideNumber || filename.match(/\d+/)?.[0] || "unknown";
@@ -66,7 +115,7 @@ export class GeminiPDFAnalyzer {
 
       // Create the model
       const model = this.genAI.getGenerativeModel({
-        model: this.options.model,
+        model: this.options.model || "gemini-2.5-flash",
         generationConfig: {
           temperature: this.options.temperature,
           topK: 1,
@@ -125,7 +174,7 @@ Remember: The extractedText field must contain EVERY word visible in the slide.`
       }
 
       // Parse the JSON response
-      let analysis;
+      let analysis: PDFAnalysis;
       try {
         // Extract JSON from the response
         const jsonMatch = text.match(/\{[\s\S]*\}/);
@@ -143,19 +192,25 @@ Remember: The extractedText field must contain EVERY word visible in the slide.`
         };
       }
 
-      return {
+      // Return the result with text property for backwards compatibility
+      const resultData: PDFAnalysisResult = {
         filename,
         slideNumber,
-        model: this.options.model,
+        model: this.options.model || "gemini-2.5-flash",
         analysis,
+        text: analysis.extractedText || text,
+        pageCount: 1, // Default to 1 for single slide PDFs
       };
+
+      return resultData;
     } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
       console.error(`Error analyzing PDF ${filename}:`, error);
       return {
         filename,
         slideNumber,
-        model: this.options.model,
-        error: error.message,
+        model: this.options.model || "gemini-2.5-flash",
+        error: errorMessage,
       };
     }
   }
@@ -163,13 +218,10 @@ Remember: The extractedText field must contain EVERY word visible in the slide.`
 
 /**
  * Helper function to analyze a PDF slide
- * @param {string} pdfPath - Path to the PDF file
- * @param {Object} options - Analysis options
- * @returns {Promise<Object>} Analysis results
  */
-export async function analyzePDFSlide(pdfPath, options = {}) {
+export async function analyzePDFSlide(pdfPath: string, options: PDFAnalyzerOptions = {}): Promise<PDFAnalysisResult> {
   const analyzer = new GeminiPDFAnalyzer(options);
-  return analyzer.analyzePDF(pdfPath, options);
+  return analyzer.analyzePDF(pdfPath);
 }
 
 export default GeminiPDFAnalyzer;

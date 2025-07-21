@@ -1,4 +1,4 @@
-import { GeminiVideoAnalyzer } from "./src/utils/gemini-video-analyzer.js";
+import { GeminiVideoAnalyzer } from "../src/utils/gemini-video-analyzer.js";
 import fs from "fs/promises";
 import path from "path";
 import { execSync } from "child_process";
@@ -10,7 +10,7 @@ dotenv.config();
 console.log("🎥 Gemini Video Analysis Test Tool");
 console.log("=".repeat(50));
 
-async function testGeminiVideo() {
+async function testGeminiVideo(): Promise<void> {
   // Check API key
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
@@ -50,7 +50,7 @@ async function testGeminiVideo() {
   }
 
   // Test Gemini video analysis
-  console.log("\n🧪 Testing Gemini 2.0 Flash Video Analysis...\n");
+  console.log("\n🧪 Testing Gemini 2.5 Flash Video Analysis...\n");
 
   const analyzer = new GeminiVideoAnalyzer();
 
@@ -109,17 +109,18 @@ async function testGeminiVideo() {
 
     console.log("\n✅ Gemini Video analysis test completed successfully!");
   } catch (error) {
-    console.error("\n❌ Gemini Video test failed:", error.message);
+    const errorMessage = error instanceof Error ? error.message : String(error);
+    console.error("\n❌ Gemini Video test failed:", errorMessage);
 
-    if (error.message.includes("API key")) {
+    if (errorMessage.includes("API key")) {
       console.log("⚠️ Invalid API key - please check your Gemini API key");
-    } else if (error.message.includes("quota")) {
+    } else if (errorMessage.includes("quota")) {
       console.log("⚠️ API quota exceeded - please check your usage limits");
-    } else if (error.message.includes("model")) {
+    } else if (errorMessage.includes("model")) {
       console.log(
-        "⚠️ Model not available - ensure you have access to gemini-2.0-flash"
+        "⚠️ Model not available - ensure you have access to gemini-2.5-flash"
       );
-    } else if (error.message.includes("size")) {
+    } else if (errorMessage.includes("size")) {
       console.log("⚠️ Video file too large - try a smaller video");
     }
   }

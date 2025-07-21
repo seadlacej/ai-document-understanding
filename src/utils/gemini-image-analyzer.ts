@@ -6,18 +6,49 @@ import dotenv from "dotenv";
 // Load environment variables
 dotenv.config();
 
+interface AnalyzerOptions {
+  apiKey?: string;
+  model?: string;
+  temperature?: number;
+}
+
+interface ImageAnalysis {
+  extractedText: string;
+  description: string;
+  language: string;
+  confidence: string;
+}
+
+interface AnalysisResult {
+  filename: string;
+  source: string;
+  model: string;
+  analysis: ImageAnalysis;
+  error?: string;
+}
+
+interface ImageContext {
+  source?: string;
+  index?: number;
+  total?: number;
+  slideNumber?: number | string;
+}
+
 /**
  * Gemini Image Analyzer
  * Uses Google's Gemini 2.5 Flash model for pure vision analysis
  * No OCR - direct image understanding through the model
  */
-export class GeminiAnalyzer {
-  constructor(options = {}) {
+export class GeminiImageAnalyzer {
+  private options: AnalyzerOptions & { apiKey: string };
+  private genAI: GoogleGenerativeAI;
+  private model: any;
+
+  constructor(options: AnalyzerOptions = {}) {
     this.options = {
-      apiKey: process.env.GEMINI_API_KEY,
+      apiKey: process.env.GEMINI_API_KEY || '',
       model: "gemini-2.5-flash",
       temperature: 0.1,
-      // maxTokens: 4000,
       ...options,
     };
 
@@ -30,25 +61,21 @@ export class GeminiAnalyzer {
     // Initialize the Gemini client
     this.genAI = new GoogleGenerativeAI(this.options.apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: this.options.model,
+      model: this.options.model || "gemini-2.5-flash",
       generationConfig: {
         temperature: this.options.temperature,
-        // maxOutputTokens: this.options.maxTokens,
       },
     });
   }
 
   /**
    * Analyze image using Gemini Vision
-   * @param {string} imagePath - Path to image file
-   * @param {Object} context - Additional context
-   * @returns {Promise<Object>} Analysis results
    */
-  async analyzeImage(imagePath, context = {}) {
-    const result = {
+  async analyzeImage(imagePath: string, context: ImageContext = {}): Promise<AnalysisResult> {
+    const result: AnalysisResult = {
       filename: path.basename(imagePath),
       source: context.source || "unknown",
-      model: this.options.model,
+      model: this.options.model || "gemini-2.5-flash",
       analysis: {
         extractedText: "",
         description: "",
@@ -101,12 +128,13 @@ Focus on extracting EVERY piece of text visible in the image. Do not summarize o
         result.analysis.description = "Raw text extraction from Gemini";
       }
     } catch (error) {
-      console.error(`Error analyzing image with Gemini: ${error.message}`);
-      result.error = error.message;
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      console.error(`Error analyzing image with Gemini: ${errorMessage}`);
+      result.error = errorMessage;
 
-      if (error.message.includes("API key")) {
+      if (errorMessage.includes("API key")) {
         result.error = "Invalid or missing Gemini API key";
-      } else if (error.message.includes("quota")) {
+      } else if (errorMessage.includes("quota")) {
         result.error = "Gemini API quota exceeded";
       }
     }
@@ -117,9 +145,9 @@ Focus on extracting EVERY piece of text visible in the image. Do not summarize o
   /**
    * Get MIME type from file extension
    */
-  getMimeType(filePath) {
+  private getMimeType(filePath: string): string {
     const ext = path.extname(filePath).toLowerCase();
-    const mimeTypes = {
+    const mimeTypes: Record<string, string> = {
       ".jpg": "image/jpeg",
       ".jpeg": "image/jpeg",
       ".png": "image/png",
@@ -129,45 +157,17 @@ Focus on extracting EVERY piece of text visible in the image. Do not summarize o
     };
     return mimeTypes[ext] || "image/png";
   }
-
-  /**
-   * Batch analyze multiple images
-   */
-  // async analyzeImages(imagePaths, onProgress) {
-  //   const results = [];
-
-  //   for (let i = 0; i < imagePaths.length; i++) {
-  //     const imagePath = imagePaths[i];
-  //     const result = await this.analyzeImage(imagePath, {
-  //       index: i,
-  //       total: imagePaths.length,
-  //     });
-
-  //     results.push(result);
-
-  //     if (onProgress) {
-  //       onProgress(i + 1, imagePaths.length, result);
-  //     }
-  //   }
-
-  //   return results;
-  // }
-
-  /**
-   * Extract text only (simplified method)
-   */
-  // async extractText(imagePath) {
-  //   const result = await this.analyzeImage(imagePath);
-  //   return result.analysis.extractedText || "";
-  // }
 }
 
 /**
  * Full Gemini analysis
  */
-export async function analyzeWithGemini(imagePath, options = {}) {
-  const analyzer = new GeminiAnalyzer(options);
+export async function analyzeWithGemini(imagePath: string, options: AnalyzerOptions = {}): Promise<AnalysisResult> {
+  const analyzer = new GeminiImageAnalyzer(options);
   return await analyzer.analyzeImage(imagePath);
 }
 
-export default GeminiAnalyzer;
+// Export the original class name for backwards compatibility
+export { GeminiImageAnalyzer as GeminiAnalyzer };
+
+export default GeminiImageAnalyzer;

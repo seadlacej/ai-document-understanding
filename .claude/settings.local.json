@@ -13,7 +13,21 @@
       "Bash(touch:*)",
       "mcp__office-powerpoint__open_presentation",
       "mcp__office-powerpoint__get_presentation_info",
-      "mcp__office-powerpoint__get_slide_info"
+      "mcp__office-powerpoint__get_slide_info",
+      "Bash(npm create:*)",
+      "Bash(npx sv create:*)",
+      "Bash(npm install:*)",
+      "Bash(pnpm install:*)",
+      "Bash(pnpm create:*)",
+      "Bash(pnpm dlx:*)",
+      "Bash(nvm list:*)",
+      "Bash(nvm use:*)",
+      "Bash(nvm exec:*)",
+      "Bash(mv:*)",
+      "Bash(find:*)",
+      "Bash(chmod:*)",
+      "Bash(rm:*)",
+      "Bash(true)"
     ],
     "deny": []
   },

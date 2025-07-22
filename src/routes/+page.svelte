@@ -2,7 +2,7 @@
   import PocketBase from 'pocketbase';
   import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "$lib/components/ui/card";
   import { Button } from "$lib/components/ui/button";
-  import { Upload, FileText, Download, Loader2, AlertCircle } from "lucide-svelte";
+  import { Upload, FileText, Download, Loader2, AlertCircle, ChevronRight, ChevronDown } from "lucide-svelte";
   import type { Job } from "$lib/server/pocketbase";
   import { onMount, onDestroy } from 'svelte';
   import { invalidate } from '$app/navigation';
@@ -15,6 +15,7 @@
   let uploading = false;
   let fileInput: HTMLInputElement;
   let pollInterval: ReturnType<typeof setInterval>;
+  let expandedErrors = new Set<string>();
 
   let jobs = data.jobs;
   const pb = new PocketBase(data.pocketbaseUrl);
@@ -30,7 +31,7 @@
       '*',
       (event) => {
         if (event.action === 'create') {
-          jobs = [...jobs, event.record];
+          jobs = [event.record, ...jobs];
         } else if (event.action === 'update') {
           jobs = jobs.map(job => 
             job.id === event.record.id ? event.record : job
@@ -132,6 +133,20 @@
       default: return 'text-gray-600';
     }
   }
+
+  function toggleError(jobId: string) {
+    if (expandedErrors.has(jobId)) {
+      expandedErrors.delete(jobId);
+    } else {
+      expandedErrors.add(jobId);
+    }
+    expandedErrors = expandedErrors; // Trigger reactivity
+  }
+
+  function truncateError(error: string, maxLength: number = 50): string {
+    if (error.length <= maxLength) return error;
+    return error.substring(0, maxLength) + '...';
+  }
 </script>
 
 <div class="container mx-auto p-8 max-w-4xl">
@@ -220,33 +235,59 @@
         {:else}
           <div class="space-y-3">
             {#each jobs as job}
-              <div class="flex items-center justify-between p-4 border rounded-lg">
-                <div class="flex-1">
-                  <h4 class="font-medium">{job.filename}</h4>
-                  <p class="text-sm {getStatusColor(job.status)} capitalize">
-                    {job.status}
-                    {#if job.status === 'processing'}
-                      <Loader2 class="inline-block ml-1 h-3 w-3 animate-spin" />
-                    {/if}
-                  </p>
-                  {#if job.error}
-                    <p class="text-sm text-red-600 flex items-center gap-1 mt-1">
-                      <AlertCircle class="h-3 w-3" />
-                      {job.error}
+              <div class="p-4 border rounded-lg">
+                <div class="flex items-center justify-between">
+                  <div class="flex-1 min-w-0">
+                    <h4 class="font-medium truncate">{job.filename}</h4>
+                    <p class="text-sm {getStatusColor(job.status)} capitalize">
+                      {job.status}
+                      {#if job.status === 'processing'}
+                        <Loader2 class="inline-block ml-1 h-3 w-3 animate-spin" />
+                      {/if}
                     </p>
+                    <p class="text-xs text-gray-500">
+                      Created at: {new Date(job.created).toLocaleString()}
+                    </p>
+                  </div>
+                  
+                  {#if job.status === 'completed' && job.zipPath}
+                    <a href="/api/download/{job.id}" download class="ml-4 flex-shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                      >
+                        <Download class="mr-2 h-4 w-4" />
+                        Download
+                      </Button>
+                    </a>
                   {/if}
                 </div>
                 
-                {#if job.status === 'completed' && job.zipPath}
-                  <a href="/api/download/{job.id}" download>
-                    <Button
-                      variant="outline"
-                      size="sm"
+                {#if job.error}
+                  <div class="mt-3 border-t pt-3">
+                    <button
+                      type="button"
+                      class="w-full text-left text-sm text-red-600 hover:text-red-700 transition-colors"
+                      on:click={() => toggleError(job.id)}
                     >
-                      <Download class="mr-2 h-4 w-4" />
-                      Download
-                    </Button>
-                  </a>
+                      <div class="flex items-start gap-1">
+                        {#if expandedErrors.has(job.id)}
+                          <ChevronDown class="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        {:else}
+                          <ChevronRight class="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        {/if}
+                        <AlertCircle class="h-4 w-4 flex-shrink-0 mt-0.5" />
+                        <span class="break-words">
+                          {expandedErrors.has(job.id) ? 'Error details:' : `Error: ${truncateError(job.error)}`}
+                        </span>
+                      </div>
+                    </button>
+                    {#if expandedErrors.has(job.id)}
+                      <div class="mt-2 ml-9 p-3 bg-red-50 border border-red-200 rounded text-sm text-red-700">
+                        <pre class="whitespace-pre-wrap break-words font-sans">{job.error}</pre>
+                      </div>
+                    {/if}
+                  </div>
                 {/if}
               </div>
             {/each}

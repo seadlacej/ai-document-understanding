@@ -26,8 +26,7 @@ if (!filePath) {
 // Generate timestamp and output directory name
 const timestamp = new Date()
   .toISOString()
-  .replace(/[:.]/g, "")
-  .replace("T", "")
+  .replace(/[-:.TZ]/g, "")
   .slice(0, 14);
 const filename = path.basename(filePath, ".pptx");
 const outputDirName = `${timestamp}_${filename.replace(/\s+/g, "_")}`;
@@ -402,48 +401,85 @@ async function extractMediaFromPPTX(
   const imageExtensions = [".png", ".jpg", ".jpeg", ".gif", ".bmp", ".svg"];
   const videoExtensions = [".mp4", ".avi", ".mov", ".wmv", ".mkv"];
 
-  for (const entry of entries) {
-    if (entry.entryName.includes("ppt/media/")) {
-      const extension = path.extname(entry.entryName).toLowerCase();
-      const name = path.basename(entry.entryName);
+  try {
+    // First, build a map of media files to slide numbers by parsing relationships
+    const mediaToSlideMap = await buildMediaToSlideMap(zip);
 
-      if (imageExtensions.includes(extension)) {
-        const outputPath = path.join(tempDir, name);
-        await fs.writeFile(outputPath, entry.getData());
+    for (const entry of entries) {
+      if (entry.entryName.includes("ppt/media/")) {
+        const extension = path.extname(entry.entryName).toLowerCase();
+        const name = path.basename(entry.entryName);
 
-        // Try to determine slide number from relationships
-        const slideNumber = extractSlideNumber(entry.entryName);
+        if (imageExtensions.includes(extension)) {
+          const outputPath = path.join(tempDir, name);
+          await fs.writeFile(outputPath, entry.getData());
 
-        media.images.push({
-          name,
-          path: outputPath,
-          extension: extension.slice(1),
-          slideNumber,
-        });
-      } else if (videoExtensions.includes(extension)) {
-        const outputPath = path.join(tempDir, name);
-        await fs.writeFile(outputPath, entry.getData());
+          // Get slide number from our mapping
+          const slideNumber = mediaToSlideMap[name] || "Unknown";
 
-        const slideNumber = extractSlideNumber(entry.entryName);
+          media.images.push({
+            name,
+            path: outputPath,
+            extension: extension.slice(1),
+            slideNumber,
+          });
+        } else if (videoExtensions.includes(extension)) {
+          const outputPath = path.join(tempDir, name);
+          await fs.writeFile(outputPath, entry.getData());
 
-        media.videos.push({
-          name,
-          path: outputPath,
-          extension: extension.slice(1),
-          slideNumber,
-        });
+          const slideNumber = mediaToSlideMap[name] || "Unknown";
+
+          media.videos.push({
+            name,
+            path: outputPath,
+            extension: extension.slice(1),
+            slideNumber,
+          });
+        }
       }
     }
+  } catch (error) {
+    Promise.reject(
+      `Failed to extract media from PPTX: ${(error as Error).message}`
+    );
   }
 
   return media;
 }
 
-function extractSlideNumber(mediaPath: string): number | string {
-  // This is a simplified approach - in reality, you'd need to parse the relationships
-  // to determine which slide each media file belongs to
-  const match = mediaPath.match(/slide(\d+)/);
-  return match ? parseInt(match[1]) : "Unknown";
+async function buildMediaToSlideMap(
+  zip: AdmZip
+): Promise<{ [key: string]: number }> {
+  const mediaToSlideMap: { [key: string]: number } = {};
+  const entries = zip.getEntries();
+
+  try {
+    // Process each slide's relationship file
+    for (const entry of entries) {
+      if (entry.entryName.match(/ppt\/slides\/_rels\/slide(\d+)\.xml\.rels$/)) {
+        const slideNumber = parseInt(entry.entryName.match(/slide(\d+)/)![1]);
+        const relsContent = entry.getData().toString("utf8");
+
+        // Parse the XML to find media relationships
+        // Look for Target attributes that point to media files
+        const mediaMatches = relsContent.matchAll(
+          /Target="\.\.\/(media\/[^"]+)"/g
+        );
+
+        for (const match of mediaMatches) {
+          const mediaPath = match[1]; // e.g., "media/image1.png"
+          const mediaName = path.basename(mediaPath);
+          mediaToSlideMap[mediaName] = slideNumber;
+        }
+      }
+    }
+  } catch (error) {
+    throw new Error(
+      `Failed to build media to slide map: ${(error as Error).message}`
+    );
+  }
+
+  return mediaToSlideMap;
 }
 
 async function createResultMarkdown(

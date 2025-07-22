@@ -1,4 +1,25 @@
-# Use Node.js 20 Alpine for smaller image size
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Copy package files
+COPY package*.json ./
+COPY pnpm-lock.yaml ./
+
+# Install pnpm
+RUN npm install -g pnpm
+
+# Install dependencies
+RUN pnpm install --frozen-lockfile
+
+# Copy source files
+COPY . .
+
+# Build the application
+RUN pnpm run build
+
+# Production stage
 FROM node:20-alpine
 
 # Install LibreOffice and required dependencies
@@ -28,39 +49,41 @@ RUN apk update && apk add --no-cache \
 # Set up fonts
 RUN fc-cache -f -v
 
-# Create app directory
 WORKDIR /app
+
+# Install pnpm
+RUN npm install -g pnpm
 
 # Copy package files
 COPY package*.json ./
 COPY pnpm-lock.yaml ./
 
-# Install pnpm
-RUN npm install -g pnpm
+# Install production dependencies only
+RUN pnpm install --prod --frozen-lockfile
 
-# Install Node.js dependencies
-RUN pnpm install --frozen-lockfile
+# Copy built application from builder stage
+COPY --from=builder /app/build ./build
+COPY --from=builder /app/.svelte-kit ./.svelte-kit
 
-# Copy application files
-COPY . .
-
-# Build the SvelteKit app (for production)
-# RUN pnpm run build
+# Copy other necessary files
+COPY static ./static
+COPY src ./src
 
 # Create required directories
 RUN mkdir -p uploads output temp logs pb_data pb_migrations && \
     chmod 755 uploads output temp logs pb_data pb_migrations
 
-# Set environment variables for LibreOffice
+# Set environment variables
 ENV HOME=/tmp
 ENV LIBREOFFICE_PATH=/usr/bin/soffice
+ENV NODE_ENV=production
 
-# Expose ports
-EXPOSE 5173 4173
+# Expose port
+EXPOSE 3000
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD node -e "process.exit(0)" || exit 1
+  CMD wget --no-verbose --tries=1 --spider http://localhost:3000/api/health || exit 1
 
-# Default command (can be overridden in docker-compose)
-CMD ["pnpm", "run", "dev", "--", "--host", "0.0.0.0"]
+# Run the application
+CMD ["node", "build"]

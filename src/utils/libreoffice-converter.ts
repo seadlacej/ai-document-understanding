@@ -55,42 +55,33 @@ export class LibreOfficeConverter {
    */
   async checkAvailability(): Promise<boolean> {
     try {
-      // Check common LibreOffice executable names
-      const commands = ["soffice", "libreoffice"];
-
-      for (const cmd of commands) {
+      // First check if LIBREOFFICE_PATH is set in environment
+      const envPath = process.env.LIBREOFFICE_PATH;
+      if (envPath) {
         try {
-          execSync(`which ${cmd}`, { stdio: "pipe" });
-          this.libreOfficePath = cmd;
+          await fs.access(envPath);
+          this.libreOfficePath = envPath;
           this.isAvailable = true;
-          console.log(`LibreOffice found: ${cmd}`);
+          console.log(`LibreOffice found at configured path: ${envPath}`);
           return true;
         } catch (e) {
-          // Try next command
+          console.error(`Configured LibreOffice path not accessible: ${envPath}`);
         }
       }
 
-      // Check Mac-specific paths
-      const macPaths = [
-        "/Applications/LibreOffice.app/Contents/MacOS/soffice",
-        "/usr/local/bin/soffice",
-        "/opt/homebrew/bin/soffice",
-      ];
-
-      for (const libPath of macPaths) {
-        try {
-          await fs.access(libPath);
-          this.libreOfficePath = libPath;
-          this.isAvailable = true;
-          console.log(`LibreOffice found at: ${libPath}`);
-          return true;
-        } catch (e) {
-          // Try next path
-        }
+      // If not in env, try to find it dynamically
+      try {
+        execSync(`which soffice`, { stdio: "pipe" });
+        this.libreOfficePath = "soffice";
+        this.isAvailable = true;
+        console.log(`LibreOffice found in PATH: soffice`);
+        return true;
+      } catch (e) {
+        // Not found in PATH
       }
 
       console.log(
-        "LibreOffice not found. Please install with: brew install libreoffice"
+        "LibreOffice not found. Please set LIBREOFFICE_PATH in .env or install with: brew install libreoffice"
       );
       return false;
     } catch (error) {
@@ -168,8 +159,6 @@ If text spacing issues occur:
       const jsonParams = JSON.stringify(pdfExportParams);
 
       // Use JSON format for PDF export parameters
-      console.log("+++++ this.libreOfficePath: ", this.libreOfficePath);
-
       let pdfCmd = `${this.libreOfficePath} --headless --convert-to 'pdf:writer_pdf_Export:${jsonParams}' --outdir "${absOutputDir}" "${absPptxPath}"`;
 
       try {

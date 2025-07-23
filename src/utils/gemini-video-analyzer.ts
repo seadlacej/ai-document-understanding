@@ -64,7 +64,7 @@ export class GeminiVideoAnalyzer {
 
   constructor(options: VideoAnalyzerOptions = {}) {
     this.options = {
-      apiKey: process.env.GEMINI_API_KEY || '',
+      apiKey: process.env.GEMINI_API_KEY || "",
       model: "gemini-2.5-flash",
       temperature: 0.1,
       ...options,
@@ -90,7 +90,10 @@ export class GeminiVideoAnalyzer {
   /**
    * Analyze video using Gemini Vision
    */
-  async analyzeVideo(videoPath: string, context: VideoContext = {}): Promise<VideoAnalysisResult> {
+  async analyzeVideo(
+    videoPath: string,
+    context: VideoContext = {}
+  ): Promise<VideoAnalysisResult> {
     const result: VideoAnalysisResult = {
       filename: path.basename(videoPath),
       source: context.source || "unknown",
@@ -172,7 +175,17 @@ IMPORTANT:
 
       // Parse the JSON response
       try {
-        const parsed = JSON.parse(responseText);
+        let jsonText = responseText;
+
+        // Check if the response is wrapped in markdown code blocks
+        const codeBlockMatch = responseText.match(
+          /```(?:json)?\s*\n?([\s\S]*?)\n?```/
+        );
+        if (codeBlockMatch) {
+          jsonText = codeBlockMatch[1].trim();
+        }
+
+        const parsed = JSON.parse(jsonText);
 
         result.analysis.audioTranscription = parsed.audioTranscription || "";
         result.analysis.visualDescription = parsed.visualDescription || "";
@@ -201,10 +214,14 @@ IMPORTANT:
         await this.fileManager.deleteFile(file.name);
         console.log("🧹 Cleaned up uploaded file");
       } catch (deleteError) {
-        console.warn("Could not delete uploaded file:", (deleteError as Error).message);
+        console.warn(
+          "Could not delete uploaded file:",
+          (deleteError as Error).message
+        );
       }
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error(`Error analyzing video with Gemini: ${errorMessage}`);
       result.error = errorMessage;
 
@@ -269,7 +286,10 @@ IMPORTANT:
 /**
  * Full video analysis
  */
-export async function analyzeVideoWithGemini(videoPath: string, options: VideoAnalyzerOptions = {}): Promise<VideoAnalysisResult> {
+export async function analyzeVideoWithGemini(
+  videoPath: string,
+  options: VideoAnalyzerOptions = {}
+): Promise<VideoAnalysisResult> {
   const analyzer = new GeminiVideoAnalyzer(options);
   return await analyzer.analyzeVideo(videoPath);
 }

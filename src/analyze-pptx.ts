@@ -28,7 +28,13 @@ const timestamp = new Date()
   .toISOString()
   .replace(/[-:.TZ]/g, "")
   .slice(0, 14);
-const filename = path.basename(filePath, ".pptx");
+const fullFilename = path.basename(filePath, ".pptx");
+
+// Remove UUID prefix if present (format: uuid_originalname)
+const filename = fullFilename.includes("_")
+  ? fullFilename.substring(fullFilename.indexOf("_") + 1)
+  : fullFilename;
+
 const outputDirName = `${timestamp}_${filename.replace(/\s+/g, "_")}`;
 const outputDir = path.join(process.cwd(), "output", outputDirName);
 

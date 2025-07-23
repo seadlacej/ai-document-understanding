@@ -8,11 +8,10 @@ import { processJob } from "$lib/server/processor";
 
 const TEMP_UPLOAD_DIR = path.join(process.cwd(), "temp", "uploads");
 
-// Ensure temp directory exists
-await fs.mkdir(TEMP_UPLOAD_DIR, { recursive: true }).catch(() => {});
-
 export const POST: RequestHandler = async ({ request }) => {
   try {
+    // Ensure temp directory exists
+    await fs.mkdir(TEMP_UPLOAD_DIR, { recursive: true }).catch(() => {});
     const formData = await request.formData();
     const file = formData.get("file") as File;
 

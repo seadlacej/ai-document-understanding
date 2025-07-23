@@ -4,7 +4,7 @@
   "description": "Complete document content extraction with deep AI analysis of images and videos",
   "type": "module",
   "scripts": {
-    "setup": "mkdir -p uploads output/text output/images output/videos output/analysis output/final temp logs",
+    "setup": "mkdir -p output temp temp/uploads logs",
     "clean": "rm -rf temp/*",
     "test": "echo 'Upload files to ./uploads folder for analysis'",
     "check:libreoffice": "node src/utils/check-libreoffice.js",

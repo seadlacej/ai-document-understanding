@@ -9,20 +9,15 @@ import { createWriteStream } from "fs";
 const execAsync = promisify(exec);
 
 const ROOT_DIR = process.cwd();
-const UPLOADS_DIR = path.join(ROOT_DIR, "uploads");
 const OUTPUT_DIR = path.join(ROOT_DIR, "output");
-const ZIPS_DIR = path.join(ROOT_DIR, "temp", "zips");
-
-// Ensure directories exist
-await fs.mkdir(UPLOADS_DIR, { recursive: true }).catch(() => {});
-await fs.mkdir(OUTPUT_DIR, { recursive: true }).catch(() => {});
-await fs.mkdir(ZIPS_DIR, { recursive: true }).catch(() => {});
 
 export async function processJob(jobId: string) {
   let job;
   let fileRecord: any;
 
   try {
+    // Ensure directories exist
+    await fs.mkdir(OUTPUT_DIR, { recursive: true }).catch(() => {});
     // Update job status to processing
     job = await pb.collection("jobs").update(jobId, {
       status: "processing",
@@ -39,21 +34,14 @@ export async function processJob(jobId: string) {
 
     fileRecord = fileRecords[0];
 
-    // Copy file to uploads directory
-    const uploadPath = path.join(
-      UPLOADS_DIR,
-      path.basename(fileRecord.originalName)
-    );
-    await fs.copyFile(fileRecord.savedPath, uploadPath);
-
-    // Run the analysis script
+    // Run the analysis script directly on the file in temp/uploads
     console.log(
       `Starting analysis for job ${jobId}: ${fileRecord.originalName}`
     );
 
     const scriptPath = path.join(ROOT_DIR, "src", "analyze-pptx.ts");
     const { stdout, stderr } = await execAsync(
-      `npx tsx "${scriptPath}" "${uploadPath}"`,
+      `npx tsx "${scriptPath}" "${fileRecord.savedPath}"`,
       {
         cwd: ROOT_DIR,
         env: {
@@ -87,12 +75,12 @@ export async function processJob(jobId: string) {
 
     const outputPath = path.join(OUTPUT_DIR, jobOutputDir);
 
-    // Create zip file
-    const zipFileName = `${jobId}_${path.basename(
+    // Create zip file in the output directory
+    const zipFileName = `${path.basename(
       fileRecord.originalName,
       ".pptx"
     )}.zip`;
-    const zipPath = path.join(ZIPS_DIR, zipFileName);
+    const zipPath = path.join(outputPath, zipFileName);
 
     await createZip(outputPath, zipPath);
 
@@ -103,9 +91,6 @@ export async function processJob(jobId: string) {
       outputPath: outputPath,
       zipPath: zipPath,
     });
-
-    // Clean up upload file
-    await fs.unlink(uploadPath).catch(() => {});
 
     console.log(`Job ${jobId} completed successfully`);
   } catch (error) {
@@ -120,15 +105,6 @@ export async function processJob(jobId: string) {
         error: error instanceof Error ? error.message : "Unknown error",
       })
       .catch(console.error);
-
-    // Clean up
-    if (fileRecord?.savedPath) {
-      const uploadPath = path.join(
-        UPLOADS_DIR,
-        path.basename(fileRecord.originalName)
-      );
-      await fs.unlink(uploadPath).catch(() => {});
-    }
   }
 }
 
@@ -147,7 +123,14 @@ function createZip(sourceDir: string, outputPath: string): Promise<void> {
     archive.on("error", reject);
 
     archive.pipe(output);
-    archive.directory(sourceDir, false);
+    
+    // Get all files in the directory except the zip file itself
+    const zipFileName = path.basename(outputPath);
+    archive.glob("**/*", {
+      cwd: sourceDir,
+      ignore: [zipFileName]
+    });
+    
     archive.finalize();
   });
 }

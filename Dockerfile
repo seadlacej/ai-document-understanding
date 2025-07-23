@@ -42,7 +42,6 @@ RUN apk update && apk add --no-cache \
     cups-libs \
     python3 \
     py3-pip \
-    imagemagick \
     ffmpeg \
     && rm -rf /var/cache/apk/*
 

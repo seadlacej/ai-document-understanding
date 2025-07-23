@@ -71,10 +71,13 @@ export async function processJob(jobId: string) {
 
     // Find the output directory
     const outputDirs = await fs.readdir(OUTPUT_DIR);
+
+    // Transform filename the same way as analyze-pptx.ts does
+    const baseFilename = path.basename(fileRecord.originalName, ".pptx");
+    const transformedFilename = baseFilename.replace(/\s+/g, "_");
+
     const jobOutputDir = outputDirs
-      .filter((dir) =>
-        dir.includes(path.basename(fileRecord.originalName, ".pptx"))
-      )
+      .filter((dir) => dir.includes(transformedFilename))
       .sort()
       .pop();
 

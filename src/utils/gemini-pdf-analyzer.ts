@@ -7,8 +7,8 @@ import dotenv from "dotenv";
 dotenv.config();
 
 interface PDFAnalyzerOptions {
+  model: string;
   apiKey?: string;
-  model?: string;
   temperature?: number;
 }
 
@@ -21,13 +21,20 @@ interface VisualElements {
 }
 
 interface LayoutInfo {
-  type: "title" | "content" | "titleAndContent" | "comparison" | "sectionHeader" | "blank" | "custom";
+  type:
+    | "title"
+    | "content"
+    | "titleAndContent"
+    | "comparison"
+    | "sectionHeader"
+    | "blank"
+    | "custom";
   columns: number;
   hasTable: boolean;
 }
 
 interface PDFAnalysis {
-  slideNumber: number | string;
+  pageNumber: number;
   extractedText: string;
   title?: string;
   bulletPoints?: string[];
@@ -37,21 +44,19 @@ interface PDFAnalysis {
   keyTopics?: string[];
   relationships?: string;
   error?: string;
-  pageCount?: number;
 }
 
 interface PDFAnalysisResult {
   filename: string;
-  slideNumber: number | string;
   model: string;
-  analysis?: PDFAnalysis;
-  error?: string;
   text?: string;
+  pages?: PDFAnalysis[];
+  error?: string;
   pageCount?: number;
 }
 
 interface PDFAnalysisOptions {
-  slideNumber?: number | string;
+  // Options for future use
 }
 
 /**
@@ -64,12 +69,12 @@ export class GeminiPDFAnalyzer {
   private genAI: GoogleGenerativeAI;
   private fileManager: GoogleAIFileManager;
 
-  constructor(options: PDFAnalyzerOptions = {}) {
+  constructor(options: PDFAnalyzerOptions = { model: "gemini-2.5-flash" }) {
     this.options = {
-      apiKey: process.env.GEMINI_API_KEY || '',
-      model: "gemini-2.5-flash",
+      apiKey: process.env.GEMINI_API_KEY || "",
       temperature: 0.1,
       ...options,
+      model: options.model,
     };
 
     if (!this.options.apiKey) {
@@ -85,11 +90,11 @@ export class GeminiPDFAnalyzer {
   /**
    * Analyze a PDF file with Gemini
    */
-  async analyzePDF(pdfPath: string, options: PDFAnalysisOptions = {}): Promise<PDFAnalysisResult> {
+  async analyzePDF(
+    pdfPath: string,
+    options: PDFAnalysisOptions = {}
+  ): Promise<PDFAnalysisResult> {
     const filename = path.basename(pdfPath);
-    const slideNumber =
-      options.slideNumber || filename.match(/\d+/)?.[0] || "unknown";
-
     console.log(`Analyzing PDF: ${filename}`);
 
     try {
@@ -124,34 +129,40 @@ export class GeminiPDFAnalyzer {
       });
 
       // Analyze the PDF
-      const prompt = `Analyze this PDF slide and provide a comprehensive extraction in JSON format.
+      const prompt = `Analyze this entire PDF document and provide a comprehensive extraction for EACH page.
 
-CRITICAL: Extract EVERY SINGLE word of text that appears in the PDF. Do not summarize or skip any text.
+CRITICAL: Extract EVERY SINGLE word of text that appears in EACH page of the PDF. Do not summarize or skip any text.
 
-Return a JSON object with:
-{
-  "slideNumber": ${slideNumber},
-  "extractedText": "COMPLETE word-for-word transcription of ALL text in the slide",
-  "title": "The slide title if present",
-  "bulletPoints": ["Array of bullet points if present"],
-  "visualElements": {
-    "hasCharts": boolean,
-    "hasDiagrams": boolean,
-    "hasImages": boolean,
-    "hasFlowchart": boolean,
-    "description": "Full description of visual elements"
+Return ONLY a valid JSON array where each element represents one page. Do not include markdown formatting or code blocks:
+[
+  {
+    "pageNumber": 1,
+    "extractedText": "COMPLETE word-for-word transcription of ALL text in page 1",
+    "title": "The page title if present",
+    "bulletPoints": ["Array of bullet points if present"],
+    "visualElements": {
+      "hasCharts": boolean,
+      "hasDiagrams": boolean,
+      "hasImages": boolean,
+      "hasFlowchart": boolean,
+      "description": "Full description of visual elements"
+    },
+    "layout": {
+      "type": "title|content|titleAndContent|comparison|sectionHeader|blank|custom",
+      "columns": number,
+      "hasTable": boolean
+    },
+    "language": "detected language code (de/en/etc)",
+    "keyTopics": ["Main topics discussed"],
+    "relationships": "How elements relate to each other spatially"
   },
-  "layout": {
-    "type": "title|content|titleAndContent|comparison|sectionHeader|blank|custom",
-    "columns": number,
-    "hasTable": boolean
-  },
-  "language": "detected language code (de/en/etc)",
-  "keyTopics": ["Main topics discussed"],
-  "relationships": "How elements relate to each other spatially"
-}
+  // ... continue for each page in the PDF
+]
 
-Remember: The extractedText field must contain EVERY word visible in the slide.`;
+Remember: 
+- Analyze EVERY page in the PDF
+- The extractedText field must contain EVERY word visible in each page
+- Return ONLY the JSON array, no additional text or formatting`;
 
       const result = await model.generateContent([
         {
@@ -163,7 +174,8 @@ Remember: The extractedText field must contain EVERY word visible in the slide.`
         { text: prompt },
       ]);
 
-      const response = await result.response;
+      const response = result.response;
+
       const text = response.text();
 
       // Clean up the uploaded file
@@ -174,54 +186,57 @@ Remember: The extractedText field must contain EVERY word visible in the slide.`
       }
 
       // Parse the JSON response
-      let analysis: PDFAnalysis;
+      let pages: PDFAnalysis[];
       try {
-        // Extract JSON from the response
-        const jsonMatch = text.match(/\{[\s\S]*\}/);
+        let jsonText = text;
+
+        // Check if the response is wrapped in markdown code blocks
+        const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+        if (codeBlockMatch) {
+          jsonText = codeBlockMatch[1].trim();
+        }
+
+        // Extract JSON array from the response
+        const jsonMatch = jsonText.match(/\[[\s\S]*\]/);
         if (jsonMatch) {
-          analysis = JSON.parse(jsonMatch[0]);
+          pages = JSON.parse(jsonMatch[0]);
+          console.log(`Parsed ${pages.length} pages from PDF`);
         } else {
-          throw new Error("No JSON found in response");
+          throw new Error("No JSON array found in response");
         }
       } catch (parseError) {
         console.error("Failed to parse JSON response:", parseError);
-        analysis = {
-          slideNumber,
-          extractedText: text,
-          error: "Failed to parse structured response",
-        };
+        // Fallback: treat as single page with all text
+        pages = [
+          {
+            pageNumber: 1,
+            extractedText: text,
+            error: "Failed to parse structured response",
+          },
+        ];
       }
 
-      // Return the result with text property for backwards compatibility
+      // Return the result with pages array
       const resultData: PDFAnalysisResult = {
         filename,
-        slideNumber,
-        model: this.options.model || "gemini-2.5-flash",
-        analysis,
-        text: analysis.extractedText || text,
-        pageCount: 1, // Default to 1 for single slide PDFs
+        model: this.options.model,
+        text,
+        pages,
+        pageCount: pages.length,
       };
 
       return resultData;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorMessage =
+        error instanceof Error ? error.message : String(error);
       console.error(`Error analyzing PDF ${filename}:`, error);
       return {
         filename,
-        slideNumber,
-        model: this.options.model || "gemini-2.5-flash",
+        model: this.options.model,
         error: errorMessage,
       };
     }
   }
-}
-
-/**
- * Helper function to analyze a PDF slide
- */
-export async function analyzePDFSlide(pdfPath: string, options: PDFAnalyzerOptions = {}): Promise<PDFAnalysisResult> {
-  const analyzer = new GeminiPDFAnalyzer(options);
-  return analyzer.analyzePDF(pdfPath);
 }
 
 export default GeminiPDFAnalyzer;

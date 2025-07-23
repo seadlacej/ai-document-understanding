@@ -65,7 +65,9 @@ export class LibreOfficeConverter {
           console.log(`LibreOffice found at configured path: ${envPath}`);
           return true;
         } catch (e) {
-          console.error(`Configured LibreOffice path not accessible: ${envPath}`);
+          console.error(
+            `Configured LibreOffice path not accessible: ${envPath}`
+          );
         }
       }
 
@@ -99,20 +101,6 @@ export class LibreOfficeConverter {
   private checkForProblematicFonts(pptxPath: string): void {
     const filename = path.basename(pptxPath);
     console.log(`Checking ${filename} for font compatibility...`);
-
-    // Log recommendations for known problematic fonts
-    console.log(`
-Font Recommendations for Better PDF Conversion:
-- Replace 'Calibri' with 'Liberation Sans' or 'Arial'
-- Replace 'Cambria' with 'Liberation Serif' or 'Times New Roman'
-- Replace 'Consolas' with 'Liberation Mono' or 'Courier New'
-- Use standard fonts when possible for best compatibility
-
-If text spacing issues occur:
-1. Try using Liberation fonts (pre-installed on most systems)
-2. Ensure fonts are embedded in the original PPTX
-3. Consider using PDF 1.4 format instead of 1.5
-`);
   }
 
   /**

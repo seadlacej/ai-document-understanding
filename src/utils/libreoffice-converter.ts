@@ -111,65 +111,80 @@ export class LibreOfficeConverter {
   private async removeVideosFromPptx(pptxPath: string): Promise<string> {
     const tempDir = path.join(process.cwd(), "temp");
     const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-    const tempPptxPath = path.join(tempDir, `video-free-${timestamp}-${path.basename(pptxPath)}`);
+    const tempPptxPath = path.join(tempDir, `${path.basename(pptxPath)}`);
 
     try {
-      console.log(`Creating video-free copy of ${path.basename(pptxPath)}...`);
-      
+      console.log(`Creating copy of ${path.basename(pptxPath)}...`);
+
       // Read the PPTX file as ZIP
       const zip = new AdmZip(pptxPath);
       const zipEntries = zip.getEntries();
-      
-      // Create new ZIP for video-free version
+
+      // Create new ZIP for version
       const newZip = new AdmZip();
-      
+
       let videosRemoved = 0;
-      const videoExtensions = ['.mp4', '.avi', '.mov', '.wmv', '.mpg', '.mpeg', '.m4v', '.webm'];
-      
+      const videoExtensions = [
+        ".mp4",
+        ".avi",
+        ".mov",
+        ".wmv",
+        ".mpg",
+        ".mpeg",
+        ".m4v",
+        ".webm",
+      ];
+
       // Process each entry
       for (const entry of zipEntries) {
         const entryName = entry.entryName;
-        
+
         // Check if this is a video file in the media folder
-        if (entryName.startsWith('ppt/media/') && 
-            videoExtensions.some(ext => entryName.toLowerCase().endsWith(ext))) {
+        if (
+          entryName.startsWith("ppt/media/") &&
+          videoExtensions.some((ext) => entryName.toLowerCase().endsWith(ext))
+        ) {
           console.log(`Removing video: ${entryName}`);
           videosRemoved++;
           continue; // Skip adding this video to new ZIP
         }
-        
+
         // For relationship files, we need to remove video references
-        if (entryName.includes('.rels') && entry.getData) {
-          let content = entry.getData().toString('utf8');
-          
+        if (entryName.includes(".rels") && entry.getData) {
+          let content = entry.getData().toString("utf8");
+
           // Remove video relationships
-          const videoRelPattern = /<Relationship[^>]*Target="[^"]*\.(mp4|avi|mov|wmv|mpg|mpeg|m4v|webm)"[^>]*\/>/gi;
+          const videoRelPattern =
+            /<Relationship[^>]*Target="[^"]*\.(mp4|avi|mov|wmv|mpg|mpeg|m4v|webm)"[^>]*\/>/gi;
           const originalContent = content;
-          content = content.replace(videoRelPattern, '');
-          
+          content = content.replace(videoRelPattern, "");
+
           if (originalContent !== content) {
             console.log(`Cleaned video references from: ${entryName}`);
-            newZip.addFile(entryName, Buffer.from(content, 'utf8'));
+            newZip.addFile(entryName, Buffer.from(content, "utf8"));
             continue;
           }
         }
-        
+
         // Add all other files as-is
         if (entry.getData) {
           newZip.addFile(entryName, entry.getData());
         }
       }
-      
+
       // Write the new PPTX file
       await fs.mkdir(tempDir, { recursive: true });
       newZip.writeZip(tempPptxPath);
-      
-      console.log(`Video-free PPTX created: ${tempPptxPath}`);
+
+      console.log(`PPTX created: ${tempPptxPath}`);
       console.log(`Removed ${videosRemoved} video(s) from the presentation`);
-      
+
       return tempPptxPath;
     } catch (error) {
-      console.error("Error removing videos from PPTX:", (error as Error).message);
+      console.error(
+        "Error removing videos from PPTX:",
+        (error as Error).message
+      );
       throw error;
     }
   }
@@ -190,24 +205,24 @@ export class LibreOfficeConverter {
       }
     }
 
-    let videoFreePptxPath: string | null = null;
+    let tmpPptxPath: string | null = null;
 
     try {
-      // Create a video-free copy of the PPTX for PDF conversion
-      videoFreePptxPath = await this.removeVideosFromPptx(pptxPath);
-      
+      // Create a copy of the PPTX for PDF conversion
+      tmpPptxPath = await this.removeVideosFromPptx(pptxPath);
+
       // Get absolute paths
-      const absPptxPath = path.resolve(videoFreePptxPath);
+      const absPptxPath = path.resolve(tmpPptxPath);
       const absOutputDir = path.resolve(outputDir);
 
       console.log(
-        `Converting video-free ${path.basename(
+        `Converting ${path.basename(
           pptxPath
         )} to PDF with optimized text handling...`
       );
 
       // Check for problematic fonts and log warnings
-      this.checkForProblematicFonts(videoFreePptxPath);
+      this.checkForProblematicFonts(tmpPptxPath);
 
       // JSON parameters for better PDF export (LibreOffice 7.3+)
       const pdfExportParams = {
@@ -276,13 +291,16 @@ export class LibreOfficeConverter {
       console.error("Error converting PPTX to PDF:", (error as Error).message);
       throw error;
     } finally {
-      // Clean up the temporary video-free PPTX file
-      if (videoFreePptxPath) {
+      // Clean up the temporary PPTX file
+      if (tmpPptxPath) {
         try {
-          await fs.unlink(videoFreePptxPath);
-          console.log("Cleaned up temporary video-free PPTX file");
+          await fs.unlink(tmpPptxPath);
+          console.log("Cleaned up temporary PPTX file");
         } catch (cleanupError) {
-          console.warn("Failed to clean up temporary file:", (cleanupError as Error).message);
+          console.warn(
+            "Failed to clean up temporary file:",
+            (cleanupError as Error).message
+          );
         }
       }
     }

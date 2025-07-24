@@ -205,19 +205,8 @@ async function main(): Promise<void> {
     const pdfPath = pdfResult.pdfPath;
     await log(`PDF created: ${pdfResult.pdfFilename}`);
 
-    // Phase 3: Analyze PDF with Gemini
-    await log("Phase 3: Analyzing PDF with Gemini...");
-    const pdfAnalyzer = new GeminiPDFAnalyzer();
-    const pdfAnalysis = await pdfAnalyzer.analyzePDF(pdfPath);
-
-    await log(
-      `PDF analysis completed. Extracted ${
-        pdfAnalysis.text?.split(" ").length
-      } words`
-    );
-
-    // Phase 4: Process Images
-    await log("Phase 4: Processing extracted images...");
+    // Phase 3: Process Images
+    await log("Phase 3: Processing extracted images...");
     const imageAnalyzer = new GeminiImageAnalyzer();
     const imageAnalyses: ImageAnalysisResult[] = [];
 
@@ -265,8 +254,8 @@ async function main(): Promise<void> {
       }
     }
 
-    // Phase 5: Process Videos
-    await log("Phase 5: Processing extracted videos...");
+    // Phase 4: Process Videos
+    await log("Phase 4: Processing extracted videos...");
     const videoAnalyzer = new GeminiVideoAnalyzer();
     const videoAnalyses: VideoAnalysisResult[] = [];
 
@@ -319,6 +308,38 @@ async function main(): Promise<void> {
         );
       }
     }
+
+    // Phase 5: Analyze PDF with Gemini (with media context)
+    await log("Phase 5: Analyzing PDF with Gemini (with media context)...");
+    const pdfAnalyzer = new GeminiPDFAnalyzer();
+
+    // Prepare media context for PDF analysis
+    const mediaContext = {
+      images: imageAnalyses.map((img) => ({
+        filename: img.filename,
+        pageNumber: img.pageNumber,
+        extractedText: img.analysis.extractedText,
+        description: img.analysis.description,
+        language: img.analysis.language,
+      })),
+      videos: videoAnalyses.map((vid) => ({
+        filename: vid.filename,
+        pageNumber: vid.pageNumber,
+        transcription: vid.analysis.transcription,
+        description: vid.analysis.description,
+        duration: vid.analysis.duration,
+        scenes: vid.analysis.scenes,
+        language: vid.analysis.language,
+      })),
+    };
+
+    const pdfAnalysis = await pdfAnalyzer.analyzePDF(pdfPath, { mediaContext });
+
+    await log(
+      `PDF analysis completed. Extracted ${
+        pdfAnalysis.text?.split(" ").length
+      } words`
+    );
 
     // Create final result.md
     await log("Creating final analysis report...");

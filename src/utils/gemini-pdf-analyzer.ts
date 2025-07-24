@@ -41,8 +41,32 @@ interface PDFAnalysisResult {
   pageCount?: number;
 }
 
+interface MediaAnalysisContext {
+  images?: Array<{
+    filename: string;
+    pageNumber: number | string;
+    extractedText?: string;
+    description?: string;
+    language?: string;
+  }>;
+  videos?: Array<{
+    filename: string;
+    pageNumber: number | string;
+    transcription?: string;
+    description?: string;
+    duration?: number;
+    scenes?: Array<{
+      timestamp?: string;
+      startTime?: string;
+      endTime?: string;
+      description: string;
+    }>;
+    language?: string;
+  }>;
+}
+
 interface PDFAnalysisOptions {
-  // Options for future use
+  mediaContext?: MediaAnalysisContext;
 }
 
 /**
@@ -136,11 +160,58 @@ export class GeminiPDFAnalyzer {
         },
       });
 
+      // Build media context information if available
+      let mediaContextInfo = "";
+      if (options.mediaContext) {
+        mediaContextInfo = "\n\nADDITIONAL CONTEXT FROM EXTRACTED MEDIA:\n";
+
+        if (
+          options.mediaContext.images &&
+          options.mediaContext.images.length > 0
+        ) {
+          mediaContextInfo += "\nIMAGES ALREADY ANALYZED:\n";
+          options.mediaContext.images.forEach((img) => {
+            mediaContextInfo += `\nImage: ${img.filename} (Page ${img.pageNumber})`;
+            if (img.extractedText) {
+              mediaContextInfo += `\n- Extracted text: "${img.extractedText}"`;
+            }
+            if (img.description) {
+              mediaContextInfo += `\n- Description: ${img.description}`;
+            }
+            if (img.language) {
+              mediaContextInfo += `\n- Language: ${img.language}`;
+            }
+          });
+        }
+
+        if (
+          options.mediaContext.videos &&
+          options.mediaContext.videos.length > 0
+        ) {
+          mediaContextInfo += "\n\nVIDEOS ALREADY ANALYZED:\n";
+          options.mediaContext.videos.forEach((vid) => {
+            mediaContextInfo += `\nVideo: ${vid.filename} (Page ${vid.pageNumber})`;
+            if (vid.transcription) {
+              mediaContextInfo += `\n- Transcription: "${vid.transcription}"`;
+            }
+            if (vid.description) {
+              mediaContextInfo += `\n- Description: ${vid.description}`;
+            }
+            if (vid.duration) {
+              mediaContextInfo += `\n- Duration: ${vid.duration} seconds`;
+            }
+          });
+        }
+
+        mediaContextInfo +=
+          "\n\nUse this media context to better understand the content and relationships in each PDF page.\n";
+      }
+
       // Analyze the PDF
       const prompt = `Analyze this entire PDF document and provide a comprehensive extraction for EACH page.
 
 CRITICAL: Extract EVERY SINGLE word of text that appears in EACH page of the PDF. Do not summarize or skip any text.
-
+${mediaContextInfo}
 Return ONLY a valid JSON array where each element represents one page. Do not include markdown formatting or code blocks:
 [
   {
@@ -153,8 +224,8 @@ Return ONLY a valid JSON array where each element represents one page. Do not in
       "hasDiagrams": boolean,
       "hasImages": boolean,
       "hasFlowchart": boolean,
-    },
-    "description": "Full description of visual elements"
+    }
+    "description": "COMPREHENSIVE CONTENT ANALYSIS: Analyze the MEANING and SIGNIFICANCE of all visual elements on this page. For each element (charts, diagrams, images, etc.), explain: 1) What information or concept it conveys, 2) How it supports or illustrates the text content, 3) What insights or conclusions can be drawn from it, 4) How different elements work together to communicate the overall message. Use the media context to provide deeper understanding - for example, if image_001.png shows a workflow diagram, explain what process it illustrates and why it's important. Focus on the MEANING, not just the appearance."
     "language": "detected language code (de/en/etc)",
     "keyTopics": ["Main topics discussed"],
     "relationships": "How elements relate to each other spatially"
@@ -165,6 +236,11 @@ Return ONLY a valid JSON array where each element represents one page. Do not in
 Remember: 
 - Analyze EVERY page in the PDF
 - The extractedText field must contain EVERY word visible in each page
+- For the description field: Focus on the MEANING and SIGNIFICANCE of what you see
+- Explain what each visual element COMMUNICATES, not just how it looks
+- Use the media context to enhance your understanding - if you know what's in the images/videos, explain their purpose and relevance
+- Describe how visual elements support the main message or argument of the page
+- Provide insights about data trends, process flows, conceptual relationships, etc.
 - Return ONLY the JSON array, no additional text or formatting`;
 
       const result = await model.generateContent([

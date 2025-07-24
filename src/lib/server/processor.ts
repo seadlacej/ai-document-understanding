@@ -53,6 +53,7 @@ export async function processJob(jobId: string) {
 
     if (stderr) {
       console.error("Analysis stderr:", stderr);
+      throw new Error(`Analysis failed: ${stderr}`);
     }
 
     console.log("Analysis stdout:", stdout);
@@ -123,14 +124,14 @@ function createZip(sourceDir: string, outputPath: string): Promise<void> {
     archive.on("error", reject);
 
     archive.pipe(output);
-    
+
     // Get all files in the directory except the zip file itself
     const zipFileName = path.basename(outputPath);
     archive.glob("**/*", {
       cwd: sourceDir,
-      ignore: [zipFileName]
+      ignore: [zipFileName],
     });
-    
+
     archive.finalize();
   });
 }

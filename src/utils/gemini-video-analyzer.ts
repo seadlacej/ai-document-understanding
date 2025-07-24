@@ -31,7 +31,6 @@ interface VideoAnalysis {
 
 interface VideoAnalysisResult {
   filename: string;
-  source: string;
   model: string;
   analysis: VideoAnalysis;
   error?: string;
@@ -80,7 +79,7 @@ export class GeminiVideoAnalyzer {
     this.genAI = new GoogleGenerativeAI(this.options.apiKey);
     this.fileManager = new GoogleAIFileManager(this.options.apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: this.options.model || "gemini-2.5-flash",
+      model: this.options.model as string,
       generationConfig: {
         temperature: this.options.temperature,
       },
@@ -96,8 +95,7 @@ export class GeminiVideoAnalyzer {
   ): Promise<VideoAnalysisResult> {
     const result: VideoAnalysisResult = {
       filename: path.basename(videoPath),
-      source: context.source || "unknown",
-      model: this.options.model || "gemini-2.5-flash",
+      model: this.options.model as string,
       analysis: {
         audioTranscription: "",
         visualDescription: "",
@@ -113,19 +111,19 @@ export class GeminiVideoAnalyzer {
       result.analysis.duration = videoInfo.duration;
 
       // Upload video file to Gemini
-      console.log("📤 Uploading video to Gemini...");
+      console.log("Uploading video to Gemini...");
       const uploadResult = await this.fileManager.uploadFile(videoPath, {
         mimeType: this.getMimeType(videoPath),
         displayName: path.basename(videoPath),
       });
 
-      console.log(`✅ Video uploaded: ${uploadResult.file.displayName}`);
-      console.log(`📊 File URI: ${uploadResult.file.uri}`);
+      console.log(`Video uploaded: ${uploadResult.file.displayName}`);
+      console.log(`File URI: ${uploadResult.file.uri}`);
 
       // Wait for file to be processed
       let file = uploadResult.file;
       while (file.state === "PROCESSING") {
-        console.log("⏳ Waiting for video processing...");
+        console.log("Waiting for video processing...");
         await new Promise((resolve) => setTimeout(resolve, 2000));
         file = await this.fileManager.getFile(file.name);
       }
@@ -134,7 +132,7 @@ export class GeminiVideoAnalyzer {
         throw new Error("Video processing failed");
       }
 
-      console.log("✅ Video ready for analysis");
+      console.log("Video ready for analysis");
 
       // Prepare the prompt for comprehensive video analysis
       const prompt = `Analyze this video comprehensively and provide a complete transcription of all audio content and text visible in the video.
@@ -196,10 +194,6 @@ IMPORTANT:
         if (parsed.overallSummary) {
           result.analysis.summary = parsed.overallSummary;
         }
-
-        // Add properties for backwards compatibility
-        result.transcription = result.analysis.audioTranscription;
-        result.description = result.analysis.visualDescription;
       } catch (parseError) {
         // If JSON parsing fails, treat as plain text transcription
         console.warn("Failed to parse JSON response, using plain text");
@@ -212,7 +206,7 @@ IMPORTANT:
       // Clean up uploaded file
       try {
         await this.fileManager.deleteFile(file.name);
-        console.log("🧹 Cleaned up uploaded file");
+        console.log("Cleaned up uploaded file");
       } catch (deleteError) {
         console.warn(
           "Could not delete uploaded file:",

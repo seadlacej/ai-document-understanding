@@ -58,8 +58,7 @@ interface ExtractedMedia {
 
 interface ImageAnalysisResult {
   filename: string;
-  originalName: string;
-  slideNumber: number | string;
+  pageNumber: number | string;
   analysis: {
     text?: string;
     extractedText?: string;
@@ -72,8 +71,7 @@ interface ImageAnalysisResult {
 
 interface VideoAnalysisResult {
   filename: string;
-  originalName: string;
-  slideNumber: number | string;
+  pageNumber: number | string;
   analysis: {
     transcription?: string;
     description?: string;
@@ -89,16 +87,62 @@ interface VideoAnalysisResult {
   };
 }
 
+interface PDFPageAnalysis {
+  pageNumber: number;
+  extractedText: string;
+  title?: string;
+  bulletPoints?: string[];
+  visualElements?: {
+    hasCharts: boolean;
+    hasDiagrams: boolean;
+    hasImages: boolean;
+    hasFlowchart: boolean;
+    description: string;
+  };
+  language?: string;
+  keyTopics?: string[];
+  relationships?: string;
+  error?: string;
+}
+
+interface PageContent {
+  pageNumber: number;
+  pdfContent: PDFPageAnalysis;
+  images: Array<{
+    filename: string;
+    extractedText?: string;
+    description?: string;
+    language?: string;
+    confidence?: string;
+    error?: string;
+  }>;
+  videos: Array<{
+    filename: string;
+    transcription?: string;
+    description?: string;
+    duration?: number;
+    scenes?: Array<{
+      timestamp?: string;
+      startTime?: string;
+      endTime?: string;
+      description: string;
+    }>;
+    language?: string;
+    error?: string;
+  }>;
+}
+
 interface ResultData {
   filename: string;
   timestamp: string;
-  slideCount: number | string;
+  pageCount: number | string;
   imageCount: number;
   videoCount: number;
   pdfAnalysis: {
     text?: string;
     error?: string;
     pageCount?: number;
+    pages?: PDFPageAnalysis[];
   };
   imageAnalyses: ImageAnalysisResult[];
   videoAnalyses: VideoAnalysisResult[];
@@ -166,9 +210,10 @@ async function main(): Promise<void> {
     const pdfAnalyzer = new GeminiPDFAnalyzer();
     const pdfAnalysis = await pdfAnalyzer.analyzePDF(pdfPath);
 
-    const pdfText = pdfAnalysis.text || "";
     await log(
-      `PDF analysis completed. Extracted ${pdfText.split(" ").length} words`
+      `PDF analysis completed. Extracted ${
+        pdfAnalysis.text?.split(" ").length
+      } words`
     );
 
     // Phase 4: Process Images
@@ -185,42 +230,32 @@ async function main(): Promise<void> {
       );
 
       try {
-        const analysis = await imageAnalyzer.analyzeImage(image.path, {
-          slideNumber: image.slideNumber,
-        });
+        const result = await imageAnalyzer.analyzeImage(image.path);
 
-        // Get text from either 'text' or 'extractedText' property
-        const extractedText =
-          (analysis as any).text || analysis.analysis?.extractedText || "";
+        const extractedText = result.analysis?.extractedText || "";
 
-        // Only save images with meaningful content
-        if (extractedText && extractedText.trim().length > 0) {
-          const outputImagePath = path.join(
-            outputDir,
-            `image_${String(i + 1).padStart(3, "0")}.${image.extension}`
-          );
-          await fs.copyFile(image.path, outputImagePath);
-          imageAnalyses.push({
-            filename: path.basename(outputImagePath),
-            originalName: image.name,
-            slideNumber: image.slideNumber,
-            analysis: {
-              text: extractedText,
-              extractedText: analysis.analysis?.extractedText,
-              description: analysis.analysis?.description,
-              language: analysis.analysis?.language,
-              confidence: analysis.analysis?.confidence,
-              error: analysis.error,
-            },
-          });
-          await log(
-            `Gemini extracted ${extractedText.split(" ").length} words from ${
-              image.name
-            }`
-          );
-        } else {
-          await log(`Skipping ${image.name} - no meaningful content found`);
+        await fs.copyFile(image.path, path.join(outputDir, image.name));
+
+        const analysis = {
+          text: extractedText,
+          extractedText: result.analysis?.extractedText,
+          description: result.analysis?.description,
+        } as ImageAnalysisResult["analysis"];
+
+        if (result.error) {
+          analysis.error = result.error;
         }
+
+        imageAnalyses.push({
+          filename: path.basename(image.name),
+          pageNumber: image.slideNumber,
+          analysis,
+        });
+        await log(
+          `Gemini extracted ${extractedText.split(" ").length} words from ${
+            image.name
+          }`
+        );
       } catch (error) {
         await log(
           `ERROR: Failed to analyze image ${image.name}: ${
@@ -244,43 +279,36 @@ async function main(): Promise<void> {
       );
 
       try {
-        const outputVideoPath = path.join(
-          outputDir,
-          `video_${String(i + 1).padStart(3, "0")}.${video.extension}`
-        );
-        await fs.copyFile(video.path, outputVideoPath);
+        await fs.copyFile(video.path, path.join(outputDir, video.name));
 
-        const analysis = await videoAnalyzer.analyzeVideo(video.path, {
-          slideNumber: video.slideNumber,
-        });
+        const result = await videoAnalyzer.analyzeVideo(video.path);
+
+        const analysis = {
+          transcription:
+            (result as any).transcription ||
+            result.analysis?.audioTranscription,
+          description:
+            (result as any).description || result.analysis?.visualDescription,
+          duration: result.analysis?.duration,
+          scenes: result.analysis?.scenes,
+          language: result.analysis?.language,
+        } as VideoAnalysisResult["analysis"];
+
+        if (result.error) {
+          analysis.error = result.error;
+        }
 
         videoAnalyses.push({
-          filename: path.basename(outputVideoPath),
-          originalName: video.name,
-          slideNumber: video.slideNumber,
-          analysis: {
-            transcription:
-              (analysis as any).transcription ||
-              analysis.analysis?.audioTranscription,
-            description:
-              (analysis as any).description ||
-              analysis.analysis?.visualDescription,
-            duration: analysis.analysis?.duration,
-            scenes: analysis.analysis?.scenes,
-            language: analysis.analysis?.language,
-            error: analysis.error,
-          },
+          filename: path.basename(video.name),
+          pageNumber: video.slideNumber,
+          analysis,
         });
 
-        const transcription =
-          (analysis as any).transcription ||
-          analysis.analysis?.audioTranscription ||
-          "";
-        if (transcription) {
+        if (result.analysis?.audioTranscription) {
           await log(
-            `Gemini transcribed ${transcription.split(" ").length} words from ${
-              video.name
-            }`
+            `Gemini transcribed ${
+              result.analysis?.audioTranscription.split(" ").length
+            } words from ${video.name}`
           );
         }
       } catch (error) {
@@ -297,14 +325,10 @@ async function main(): Promise<void> {
     await createResultMarkdown(outputDir, {
       filename,
       timestamp: new Date().toISOString(),
-      slideCount: pdfAnalysis.pageCount || "Unknown",
+      pageCount: pdfAnalysis.pageCount || "Unknown",
       imageCount: imageAnalyses.length,
       videoCount: videoAnalyses.length,
-      pdfAnalysis: {
-        text: pdfText,
-        error: pdfAnalysis.error,
-        pageCount: pdfAnalysis.pageCount,
-      },
+      pdfAnalysis,
       imageAnalyses,
       videoAnalyses,
     });
@@ -495,7 +519,7 @@ async function createResultMarkdown(
   const {
     filename,
     timestamp,
-    slideCount,
+    pageCount,
     imageCount,
     videoCount,
     pdfAnalysis,
@@ -503,69 +527,67 @@ async function createResultMarkdown(
     videoAnalyses,
   } = data;
 
-  let markdown = `# Complete Analysis: ${filename}
+  // Build page-based content structure
+  const pageContents: PageContent[] = [];
+
+  // Process each page from PDF analysis
+  if (pdfAnalysis.pages) {
+    for (const pdfPage of pdfAnalysis.pages) {
+      // Find all images for this page
+      const pageImages = imageAnalyses
+        .filter((img) => img.pageNumber === pdfPage.pageNumber)
+        .map((img) => ({
+          filename: img.filename,
+          extractedText: img.analysis.extractedText,
+          description: img.analysis.description,
+          language: img.analysis.language,
+          confidence: img.analysis.confidence,
+          error: img.analysis.error,
+        }));
+
+      // Find all videos for this page
+      const pageVideos = videoAnalyses
+        .filter((vid) => vid.pageNumber === pdfPage.pageNumber)
+        .map((vid) => ({
+          filename: vid.filename,
+          transcription: vid.analysis.transcription,
+          description: vid.analysis.description,
+          duration: vid.analysis.duration,
+          scenes: vid.analysis.scenes,
+          language: vid.analysis.language,
+          error: vid.analysis.error,
+        }));
+
+      // Create page content object
+      const pageContent: PageContent = {
+        pageNumber: pdfPage.pageNumber,
+        pdfContent: pdfPage,
+        images: pageImages,
+        videos: pageVideos,
+      };
+
+      pageContents.push(pageContent);
+    }
+  }
+
+  // Create markdown with embedded JSON
+  const markdown = `# Complete Analysis: ${filename}
 
 ## Document Information
 
 - Filename: ${filename}.pptx
 - Type: PPTX
 - Date Processed: ${timestamp}
-- Total Slides: ${slideCount}
+- Total Pages: ${pageCount}
 - Total Images: ${imageCount}
 - Total Videos: ${videoCount}
 
-## PDF Analysis
+## Analysis Results (JSON)
 
-${pdfAnalysis.text}
-
+\`\`\`json
+${JSON.stringify(pageContents, null, 2)}
+\`\`\`
 `;
-
-  if (imageAnalyses.length > 0) {
-    markdown += `## Image Analyses\n\n`;
-
-    for (const img of imageAnalyses) {
-      markdown += `### ${img.filename} (from ${img.originalName})\n\n`;
-      markdown += `- **Slide Number:** ${img.slideNumber}\n`;
-      markdown += `- **Extracted Text:** ${
-        img.analysis.text || "No text found"
-      }\n`;
-      markdown += `- **Description:** ${
-        img.analysis.description || "No description"
-      }\n`;
-      markdown += `- **Language:** ${img.analysis.language || "Unknown"}\n`;
-      markdown += `- **Confidence:** ${
-        img.analysis.confidence || "Unknown"
-      }\n\n`;
-    }
-  }
-
-  if (videoAnalyses.length > 0) {
-    markdown += `## Video Analyses\n\n`;
-
-    for (const vid of videoAnalyses) {
-      markdown += `### ${vid.filename} (from ${vid.originalName})\n\n`;
-      markdown += `- **Slide Number:** ${vid.slideNumber}\n`;
-      markdown += `- **Duration:** ${vid.analysis.duration || "Unknown"}\n`;
-
-      if (vid.analysis.transcription) {
-        markdown += `- **Audio Transcription:** ${vid.analysis.transcription}\n`;
-      }
-
-      if (vid.analysis.description) {
-        markdown += `- **Visual Description:** ${vid.analysis.description}\n`;
-      }
-
-      if (vid.analysis.scenes && vid.analysis.scenes.length > 0) {
-        markdown += `- **Scenes:**\n`;
-        for (const scene of vid.analysis.scenes) {
-          const timestamp = scene.timestamp || scene.startTime || "";
-          markdown += `  - ${timestamp}: ${scene.description}\n`;
-        }
-      }
-
-      markdown += `- **Language:** ${vid.analysis.language || "Unknown"}\n\n`;
-    }
-  }
 
   await fs.writeFile(path.join(outputDir, "result.md"), markdown);
 }

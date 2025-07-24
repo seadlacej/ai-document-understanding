@@ -20,26 +20,12 @@ interface VisualElements {
   description: string;
 }
 
-interface LayoutInfo {
-  type:
-    | "title"
-    | "content"
-    | "titleAndContent"
-    | "comparison"
-    | "sectionHeader"
-    | "blank"
-    | "custom";
-  columns: number;
-  hasTable: boolean;
-}
-
 interface PDFAnalysis {
   pageNumber: number;
   extractedText: string;
   title?: string;
   bulletPoints?: string[];
   visualElements?: VisualElements;
-  layout?: LayoutInfo;
   language?: string;
   keyTopics?: string[];
   relationships?: string;
@@ -98,6 +84,28 @@ export class GeminiPDFAnalyzer {
     console.log(`Analyzing PDF: ${filename}`);
 
     try {
+      // Check file size before uploading
+      const fs = await import("fs/promises");
+      const stats = await fs.stat(pdfPath);
+      const fileSizeMB = stats.size / (1024 * 1024);
+
+      console.log(`PDF file size: ${fileSizeMB.toFixed(2)} MB`);
+
+      // Gemini has a file size limit of approximately 50MB
+      if (fileSizeMB > 50) {
+        throw new Error(
+          `PDF file is too large (${fileSizeMB.toFixed(
+            2
+          )} MB). Maximum supported size is 50 MB. Please compress the PDF before analysis.`
+        );
+      }
+
+      if (fileSizeMB > 20) {
+        console.warn(
+          `PDF is ${fileSizeMB.toFixed(2)} MB - this may take longer to process`
+        );
+      }
+
       // Upload the PDF file
       const uploadResult = await this.fileManager.uploadFile(pdfPath, {
         mimeType: "application/pdf",
@@ -145,13 +153,8 @@ Return ONLY a valid JSON array where each element represents one page. Do not in
       "hasDiagrams": boolean,
       "hasImages": boolean,
       "hasFlowchart": boolean,
-      "description": "Full description of visual elements"
     },
-    "layout": {
-      "type": "title|content|titleAndContent|comparison|sectionHeader|blank|custom",
-      "columns": number,
-      "hasTable": boolean
-    },
+    "description": "Full description of visual elements"
     "language": "detected language code (de/en/etc)",
     "keyTopics": ["Main topics discussed"],
     "relationships": "How elements relate to each other spatially"

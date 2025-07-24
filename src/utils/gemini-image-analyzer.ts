@@ -16,13 +16,10 @@ interface AnalyzerOptions {
 interface ImageAnalysis {
   extractedText: string;
   description: string;
-  language: string;
-  confidence: string;
 }
 
 interface AnalysisResult {
   filename: string;
-  source: string;
   model: string;
   analysis: ImageAnalysis;
   error?: string;
@@ -62,7 +59,7 @@ export class GeminiImageAnalyzer {
     // Initialize the Gemini client
     this.genAI = new GoogleGenerativeAI(this.options.apiKey);
     this.model = this.genAI.getGenerativeModel({
-      model: this.options.model || "gemini-2.5-flash",
+      model: this.options.model as string,
       generationConfig: {
         temperature: this.options.temperature,
       },
@@ -78,13 +75,10 @@ export class GeminiImageAnalyzer {
   ): Promise<AnalysisResult> {
     const result: AnalysisResult = {
       filename: path.basename(imagePath),
-      source: context.source || "unknown",
-      model: this.options.model || "gemini-2.5-flash",
+      model: this.options.model as string,
       analysis: {
         extractedText: "",
         description: "",
-        language: "",
-        confidence: "",
       },
     };
 
@@ -124,8 +118,6 @@ Return ONLY a valid JSON object in this exact format, without any markdown forma
 {
   "extractedText": "Complete transcription of ALL text visible in the image.",
   "description": "Detailed description of what the image shows",
-  "language": "detected language (e.g., 'en', 'de', 'fr')",
-  "confidence": "high|medium|low"
 }
 
 Important:
@@ -164,8 +156,6 @@ Important:
 
         result.analysis.extractedText = parsed.extractedText || "";
         result.analysis.description = parsed.description || "";
-        result.analysis.language = parsed.language || "unknown";
-        result.analysis.confidence = parsed.confidence || "unknown";
       } catch (parseError) {
         // If JSON parsing fails, treat the response as plain text
         result.analysis.extractedText = responseText;
